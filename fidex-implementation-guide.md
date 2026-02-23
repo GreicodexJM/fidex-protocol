@@ -251,6 +251,7 @@ async function encryptMessage(payload, senderPrivateKeyPEM, receiverPublicKeyPEM
     .setProtectedHeader({ 
       alg: 'RSA-OAEP', 
       enc: 'A256GCM',
+      cty: 'JWT',
       kid: receiverKID 
     })
     .encrypt(receiverPublicKey);
@@ -669,7 +670,7 @@ const fidexMessage = {
     receiver_id: "urn:gln:9876543210987",
     document_type: "GS1_ORDER_JSON",
     timestamp: new Date().toISOString(),
-    receipt_webhook: "https://sender.example.com/receipt"
+        receipt_webhook: "https://sender.example.com/receipt"  // OPTIONAL — omit to use AS5 config fallback
   },
   encrypted_payload: encrypted // JWE from above
 };
@@ -948,9 +949,11 @@ async function processIncomingMessage(fidexMessage) {
     await sendJMDN({
       original_message_id: fidexMessage.routing_header.message_id,
       status: 'DELIVERED',
+      receiver_id: myNodeId,
       hash_verification: computeHash(payload),
-      timestamp: new Date().toISOString()
-    }, fidexMessage.routing_header.receipt_webhook);
+      timestamp: new Date().toISOString(),
+      error_log: null
+    }, fidexMessage.routing_header.receipt_webhook || senderAS5Config.endpoints.receive_receipt);
     
     return { status: 202, payload };
     
@@ -959,12 +962,14 @@ async function processIncomingMessage(fidexMessage) {
     await sendJMDN({
       original_message_id: fidexMessage.routing_header.message_id,
       status: 'FAILED',
+      receiver_id: myNodeId,
+      hash_verification: 'sha256:' + '0'.repeat(64),
       error_log: {
         error_code: error.message.includes('decrypt') ? 'DECRYPTION_FAILED' : 'SIGNATURE_INVALID',
         error_message: error.message
       },
       timestamp: new Date().toISOString()
-    }, fidexMessage.routing_header.receipt_webhook);
+    }, fidexMessage.routing_header.receipt_webhook || senderAS5Config.endpoints.receive_receipt);
     
     return { status: 401, error: { code: 'CRYPTO_ERROR', message: error.message } };
   }

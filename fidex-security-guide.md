@@ -23,15 +23,14 @@
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-2. [Threat Model and Controls Matrix](#threat-model-and-controls-matrix)
-3. [Key Management](#2-key-management)
-4. [TLS/HTTPS Configuration](#3-tlshttps-configuration)
-5. [Authentication and Authorization](#4-authentication-and-authorization)
-6. [Network Security](#5-network-security)
-7. [Logging and Monitoring](#6-logging-and-monitoring)
-8. [Incident Response](#7-incident-response)
-9. [Compliance and Auditing](#8-compliance-and-auditing)
-10. [Security Checklist](#9-security-checklist)
+2. [Key Management](#2-key-management)
+3. [TLS/HTTPS Configuration](#3-tlshttps-configuration)
+4. [Authentication and Authorization](#4-authentication-and-authorization)
+5. [Network Security](#5-network-security)
+6. [Logging and Monitoring](#6-logging-and-monitoring)
+7. [Incident Response](#7-incident-response)
+8. [Compliance and Auditing](#8-compliance-and-auditing)
+9. [Security Checklist](#9-security-checklist)
 
 ---
 
@@ -618,8 +617,8 @@ rules:
       period: 60
       requests_per_period: 100
       
-  - description: "Block suspicious user agents"
-    expression: '(http.user_agent contains "curl" or http.user_agent contains "python")'
+  - description: "Block empty user agents"
+    expression: '(http.user_agent eq "")'
     action: "block"
 ```
 

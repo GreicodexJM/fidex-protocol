@@ -2,13 +2,13 @@
 
 **Date:** February 23, 2026  
 **Scope:** Review of all 7 specification documents  
-**Status:** All Changes Applied (Phase 5 — Final)
+**Status:** All Changes Applied (Phase 6 — Final)
 
 ---
 
 ## Executive Summary
 
-The FideX (AS5) specification is architecturally sound and well-positioned as a modern REST/JOSE replacement for AS2/AS4. The review identified and fixed **26 issues total** across all specification documents: 14 in the initial pass on the normative spec, and 12 more across the normative spec, OpenAPI, annotated spec, implementation guide, and quick start guide. The changes strengthen interoperability, eliminate ambiguities that would cause incompatible implementations, and close security gaps.
+The FideX (AS5) specification is architecturally sound and well-positioned as a modern REST/JOSE replacement for AS2/AS4. The review identified and fixed **33 issues total** across all specification documents: 14 in Phase 4 on the normative spec, 12 in Phase 5 across all documents, and 7 in Phase 6 addressing implementation guide code correctness, security guide issues, missing RFC references, and README accuracy. The changes strengthen interoperability, eliminate ambiguities that would cause incompatible implementations, and close security gaps.
 
 ---
 
@@ -245,6 +245,66 @@ Added: "Implementations SHOULD include `Retry-After` header (RFC 7231 §7.1.3)" 
 | 24 | Replay cache 24h minimum | spec 9.2 | MEDIUM |
 | 25 | Rate limiting Retry-After header | spec 8.1 | LOW |
 | 26 | IMPROVEMENT_SUGGESTIONS.md finalized | this file | Tracking |
+
+---
+
+## Part 4: Phase 6 — Final Polish (7 changes)
+
+### 4.1 ✅ Implementation Guide: Missing `cty: "JWT"` in JWE Header
+
+**Applied to:** `fidex-implementation-guide.md`
+
+The JavaScript `EncryptJWT` example was missing the `cty: "JWT"` header parameter required by Section 4.2. Added `cty: 'JWT'` to the JWE protected header.
+
+### 4.2 ✅ Implementation Guide: J-MDN Missing Required Fields
+
+**Applied to:** `fidex-implementation-guide.md`
+
+The error handling code examples in Section 4.2 constructed J-MDN objects missing `receiver_id`, `hash_verification` (for failures), and `error_log: null` (for success). Fixed both positive and negative J-MDN construction.
+
+### 4.3 ✅ Implementation Guide: `receipt_webhook` Fallback Logic
+
+**Applied to:** `fidex-implementation-guide.md`
+
+Code examples hardcoded `receipt_webhook` as the J-MDN delivery target without fallback. Updated to use `receipt_webhook || senderAS5Config.endpoints.receive_receipt` per Section 7.3.5. Also added comment marking `receipt_webhook` as OPTIONAL in the message construction example.
+
+### 4.4 ✅ Security Guide: WAF Rule Blocking Legitimate Clients
+
+**Applied to:** `fidex-security-guide.md`
+
+The Cloudflare WAF example blocked requests with `curl` or `python` user agents. FideX nodes commonly use HTTP libraries built on these (e.g., `requests` in Python, `curl` via libcurl). Changed to block empty user agents instead.
+
+### 4.5 ✅ Security Guide: Table of Contents Numbering
+
+**Applied to:** `fidex-security-guide.md`
+
+The ToC had mismatched numbering (listed "Threat Model" as item 2 but linked to wrong anchors, subsequent items off by one). Fixed to match actual section numbering.
+
+### 4.6 ✅ Normative Spec: Missing RFC References
+
+**Applied to:** `fidex-protocol-specification.md`
+
+Section 9.2 references NTP (RFC 5905), Section 3.2 references UUID (RFC 4122), and Section 8.1 references Retry-After (RFC 7231), but none appeared in the normative references list. Added all three.
+
+### 4.7 ✅ README: ECDSA Algorithm Support
+
+**Applied to:** `README.md`
+
+The "Required Algorithms" table only listed RS256 and RSA key sizes. Updated to show ES256/ES384 as recommended and P-256/P-384 EC key sizes alongside RSA.
+
+---
+
+### Phase 6 Summary Table
+
+| # | Change | Files Updated | Severity |
+|---|--------|--------------|----------|
+| 27 | JWE `cty: "JWT"` in JS code example | implementation guide | HIGH |
+| 28 | J-MDN missing required fields in code | implementation guide | HIGH |
+| 29 | `receipt_webhook` fallback in code | implementation guide | MEDIUM |
+| 30 | WAF rule blocking legitimate clients | security guide | HIGH |
+| 31 | Security guide ToC numbering | security guide | LOW |
+| 32 | Missing RFC references (5905, 4122, 7231) | normative spec | MEDIUM |
+| 33 | README ECDSA algorithm support | README | LOW |
 
 ---
 

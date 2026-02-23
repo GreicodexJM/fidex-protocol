@@ -75,11 +75,11 @@ The sender's FideX node signs the business payload with the sender's private key
 
 | Purpose | Algorithm | Standard |
 |---|---|---|
-| Signing | RS256 | RFC 7518 |
+| Signing | RS256 (required), ES256/ES384 (recommended) | RFC 7518 |
 | Key Encryption | RSA-OAEP | RFC 7518 |
 | Content Encryption | A256GCM | RFC 7518 |
 | Hashing | SHA-256 | FIPS 180-4 |
-| Min Key Size | 2048-bit RSA | (4096-bit recommended) |
+| Min Key Size | 2048-bit RSA / P-256 EC | (4096-bit RSA / P-384 EC recommended) |
 
 ### Key Endpoints
 

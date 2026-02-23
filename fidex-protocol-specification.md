@@ -115,6 +115,10 @@ All FideX message transmissions use HTTP POST method to the receiving endpoint s
 
 Messages MUST use `Content-Type: application/json`.
 
+### 2.5 Message Size Limits
+
+Implementations MUST accept messages up to 10 MB (complete HTTP request body). Implementations MAY accept larger messages, but senders MUST NOT assume support above 10 MB without prior agreement. Implementations SHOULD reject oversized messages with HTTP 413 (`PAYLOAD_TOO_LARGE`).
+
 ---
 
 ## 3. Message Structure
@@ -142,8 +146,8 @@ The routing header is cleartext JSON containing message metadata:
 | `receiver_id` | string | YES | URN of receiving organization |
 | `document_type` | string | YES | Business document type identifier (uppercase alphanumeric with underscores) |
 | `timestamp` | string | YES | ISO 8601 UTC timestamp. Format: `YYYY-MM-DDTHH:mm:ss.SSSZ` (millisecond precision, always UTC `Z`) |
-| `receipt_webhook` | string | YES | HTTPS URL where J-MDN receipt MUST be delivered. HTTP (non-TLS) is NOT allowed. REQUIRED for non-repudiation chain integrity. |
-| `payload_digest` | string | NO | SHA-256 digest of the encrypted_payload string. Format: `"sha256:{hex}"`. Enables routing-layer integrity checks WITHOUT decryption. |
+| `receipt_webhook` | string | NO | HTTPS URL where J-MDN receipt SHOULD be delivered. HTTP (non-TLS) is NOT allowed. When omitted, the receiver MUST deliver the J-MDN to the sender's `receive_receipt` endpoint from the sender's AS5 configuration (see Section 7.3.5). |
+| `payload_digest` | string | NO | SHA-256 digest of the `encrypted_payload` field value. Computed as `"sha256:" + hex(SHA-256(UTF-8 bytes of the encrypted_payload string as it appears in the JSON envelope))`. Enables routing-layer integrity checks WITHOUT decryption. |
 
 **Identifier Format (sender_id / receiver_id):**
 - `urn:gln:{gln}` - GS1 Global Location Number
@@ -218,8 +222,10 @@ Messages MUST be signed using the sender's private key before encryption.
 
 **Optional Algorithms:**
 - RS384, RS512, PS256, PS384, PS512
+- ES256 (ECDSA with P-256 and SHA-256) — RECOMMENDED for new deployments
+- ES384 (ECDSA with P-384 and SHA-384)
 
-**Minimum Key Size:** 2048 bits (4096 bits RECOMMENDED)
+**Minimum Key Size:** 2048 bits RSA (4096 bits RECOMMENDED). For ECDSA: P-256 minimum (P-384 RECOMMENDED).
 
 **JWS Header:**
 ```json
@@ -242,11 +248,24 @@ Signed messages MUST be encrypted using the receiver's public key.
 {
   "alg": "RSA-OAEP",
   "enc": "A256GCM",
+  "cty": "JWT",
   "kid": "{receiver-key-id}"
 }
 ```
 
-### 4.3 Prohibited Algorithms
+The `cty` (content type) header parameter MUST be set to `"JWT"` to indicate the JWE payload contains a nested JWS/JWT, per RFC 7516 §4.1.12.
+
+### 4.3 Payload Encoding
+
+The JWS payload MUST be the UTF-8 encoding of the JSON-serialized business document. Binary payloads (images, PDFs, etc.) MUST be base64-encoded before JWS signing.
+
+### 4.4 Sender Identity Verification
+
+Receivers MUST verify that the JWS signing key (identified by `kid` in the JWS header) belongs to the partner identified by `sender_id` in the routing header. Specifically:
+- The `kid` MUST resolve to a public key in the sender's JWKS
+- The sender's JWKS MUST be fetched from the `public_domain` associated with the `sender_id` in the partner database
+
+### 4.5 Prohibited Algorithms
 
 Implementations MUST NOT use:
 - `none` algorithm (no signature/encryption)
@@ -291,12 +310,32 @@ Per RFC 7517, keys must include:
 ```
 
 **Fields:**
-- `kty`: Key type (MUST be "RSA")
-- `use`: "sig" for signing, "enc" for encryption
+- `kty`: Key type. MUST be `"RSA"` for RSA keys or `"EC"` for Elliptic Curve keys.
+- `use`: `"sig"` for signing, `"enc"` for encryption
 - `kid`: Unique key identifier within JWKS
 - `alg`: Algorithm for this key
+
+**RSA-specific fields:**
 - `n`: RSA modulus (base64url-encoded)
 - `e`: RSA exponent (base64url-encoded, typically "AQAB")
+
+**EC-specific fields (for ES256/ES384):**
+- `crv`: Curve name (`"P-256"` or `"P-384"`)
+- `x`: X coordinate (base64url-encoded)
+- `y`: Y coordinate (base64url-encoded)
+
+**EC Key Example:**
+```json
+{
+  "kty": "EC",
+  "use": "sig",
+  "kid": "acme-sign-ec-2026-01",
+  "alg": "ES256",
+  "crv": "P-256",
+  "x": "{base64url-x-coordinate}",
+  "y": "{base64url-y-coordinate}"
+}
+```
 
 ### 5.3 Key Rotation
 
@@ -396,7 +435,7 @@ If no common version exists, the sender MUST NOT transmit and SHOULD report an e
    }
    ```
 2. Initiator signs payload with private key (JWS)
-3. Initiator posts signed request to responder's register endpoint
+3. Initiator posts JWS compact serialization to responder's register endpoint with `Content-Type: application/jose`
 
 **Phase 3: Responder Validates**
 1. Responder validates security token (if provided)
@@ -415,8 +454,11 @@ If no common version exists, the sender MUST NOT transmit and SHOULD report an e
 
 The registration request MUST:
 - Be signed with initiator's private key (RS256)
+- Be sent with `Content-Type: application/jose` (the body is a JWS compact serialization, not raw JSON)
 - Include timestamp within ±15 minutes of current time
 - Include security token if responder requires it
+
+Security tokens MUST have at least 128 bits of entropy (e.g., UUID v4, 32 hex characters, or 22 base64url characters generated from a CSPRNG).
 
 Responders MUST:
 - Validate signature before trusting payload
@@ -472,11 +514,17 @@ Upon receiving a message, nodes MUST perform structural validation and return:
 
 HTTP 202 indicates structural acceptance only, NOT successful decryption or processing.
 
+**Idempotency:** Receivers MUST handle duplicate `message_id` values idempotently. If a receiver receives a message with a `message_id` it has already accepted (HTTP 202), it MUST return HTTP 202 again and MUST NOT process the message a second time. This ensures safe sender retries.
+
 ### 7.3 Asynchronous Receipt (J-MDN)
 
 The J-MDN (JSON Message Disposition Notification) is the **most legally important artifact** in the FideX protocol. It provides cryptographic proof that a specific message was received, decrypted, and either accepted or rejected by the trading partner.
 
-After processing a message (whether successfully or not), the receiver MUST send a J-MDN to the sender's `receipt_webhook`.
+After processing a message (whether successfully or not), the receiver MUST send a J-MDN to the sender. The J-MDN delivery target is determined as follows:
+1. If `receipt_webhook` is present in the routing header, deliver to that URL
+2. Otherwise, deliver to the sender's `receive_receipt` endpoint from the sender's AS5 configuration
+
+If neither is available, the receiver MUST store the J-MDN and log a delivery failure.
 
 #### 7.3.1 J-MDN Payload Schema
 
@@ -546,7 +594,7 @@ The `signature` field MUST contain a JWS compact serialization that covers all o
 
 **Signing process:**
 1. Construct a JSON object with all J-MDN fields EXCEPT `signature`
-2. Serialize to canonical UTF-8 JSON (no extra whitespace, keys in schema order)
+2. Serialize to canonical UTF-8 JSON (no extra whitespace, keys in alphabetical order: `error_log`, `hash_verification`, `original_message_id`, `receiver_id`, `status`, `timestamp`)
 3. Sign using RS256 with receiver's private signing key
 4. Set `signature` to the resulting JWS compact serialization
 
@@ -640,7 +688,7 @@ After 5-6 attempts, message SHOULD transition to FAILED state requiring manual i
 | 400 | Invalid message structure | Do not retry (permanent) |
 | 401 | Authentication failed | Do not retry (permanent) |
 | 413 | Payload too large | Do not retry (permanent) |
-| 429 | Rate limit exceeded | Retry with backoff |
+| 429 | Rate limit exceeded | Retry with backoff. Implementations SHOULD include `Retry-After` header (RFC 7231 §7.1.3). |
 | 500 | Server error | Retry with backoff |
 | 503 | Service unavailable | Retry with backoff |
 
@@ -694,6 +742,8 @@ Implementations MUST:
 - Use constant-time comparison for signature verification
 - Maintain cache of recent message IDs to detect replays
 - Reject messages with timestamps outside acceptable window (±15 minutes RECOMMENDED)
+- Maintain the message ID replay cache for at least 24 hours
+- Synchronize system clocks using NTP (RFC 5905) or equivalent time synchronization protocol
 - Generate cryptographically secure random message IDs
 - Never expose private keys in logs or error messages
 
@@ -728,6 +778,12 @@ Audit trail requirements:
 - Message metadata: 7 years (RECOMMENDED)
 - Cryptographic signatures: 7 years (RECOMMENDED)
 - J-MDN receipts: 7 years (RECOMMENDED)
+
+---
+
+### 9.5 Deployment Note
+
+FideX is designed to be deployable on standard web infrastructure. A conforming node can be implemented as a standard HTTPS web application behind any reverse proxy (Nginx, Apache, Caddy, cloud load balancers). No specialized B2B middleware or messaging infrastructure is required. This is a key differentiator from AS2/AS4 which typically required specialized gateway software.
 
 ---
 
@@ -802,12 +858,14 @@ Content-Type: application/json
 POST /receipt HTTP/1.1
 Host: sender.example.com
 Content-Type: application/json
+X-FideX-Original-Message-ID: fdx-a1b2c3d4-e5f6-g7h8
 
 {
   "original_message_id": "fdx-a1b2c3d4-e5f6-g7h8",
   "status": "DELIVERED",
-  "hash_verification": "sha256-9f86d081...",
-  "timestamp": "2026-02-20T18:30:02Z",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "timestamp": "2026-02-20T18:30:02.000Z",
   "error_log": null,
   "signature": "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
 }
@@ -855,7 +913,8 @@ An implementation claiming **FideX Core** conformance MUST support:
 |-------------|------------------------|
 | HTTP/1.1 over TLS 1.3 | Section 2.1 |
 | `Content-Type: application/json` | Section 2.4 |
-| Routing header with ALL required fields (including `receipt_webhook`) | Section 3.2 |
+| Routing header with ALL required fields | Section 3.2 |
+| J-MDN fallback delivery via AS5 config `receive_receipt` endpoint | Section 7.3.5 |
 | Sign-then-encrypt: `JWE(JWS(payload))` | Section 3.3 |
 | RS256 signature algorithm | Section 4.1 |
 | RSA-OAEP key encryption + A256GCM content encryption | Section 4.2 |
@@ -988,7 +1047,7 @@ Given the test key pair and payload above:
 
 **JWE Header:**
 ```json
-{"alg":"RSA-OAEP","enc":"A256GCM","kid":"test-enc-2026-01"}
+{"alg":"RSA-OAEP","enc":"A256GCM","cty":"JWT","kid":"test-enc-2026-01"}
 ```
 
 **Routing Header:**
@@ -1045,7 +1104,7 @@ This appendix provides JSON Schema (draft-07) definitions for machine-validation
   "$id": "https://fidex-protocol.org/schemas/v1/routing-header.json",
   "title": "FideX Routing Header",
   "type": "object",
-  "required": ["fidex_version", "message_id", "sender_id", "receiver_id", "document_type", "timestamp", "receipt_webhook"],
+  "required": ["fidex_version", "message_id", "sender_id", "receiver_id", "document_type", "timestamp"],
   "additionalProperties": true,
   "properties": {
     "fidex_version": {
@@ -1206,7 +1265,7 @@ This appendix provides JSON Schema (draft-07) definitions for machine-validation
     "supported_document_types": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z0-9_]+$" } },
     "endpoints": {
       "type": "object",
-      "required": ["receive_message", "register", "jwks"],
+      "required": ["receive_message", "receive_receipt", "register", "jwks"],
       "properties": {
         "receive_message": { "type": "string", "format": "uri" },
         "receive_receipt": { "type": "string", "format": "uri" },
@@ -1238,6 +1297,7 @@ This appendix provides JSON Schema (draft-07) definitions for machine-validation
 **License:** Creative Commons Attribution 4.0 International (CC BY 4.0)
 
 **Change Log:**
+- 2026-02-23 (Phase 4): receipt_webhook made OPTIONAL with fallback to AS5 config receive_receipt endpoint (Section 3.2, 7.3.5). Added ECDSA (ES256/ES384) as RECOMMENDED optional algorithms (Section 4.1). Added JWE `cty: "JWT"` requirement (Section 4.2). Added payload encoding rules (Section 4.3). Added sender identity verification (Section 4.4). Added message size limit of 10 MB (Section 2.5). Added idempotency requirement for duplicate message_id (Section 7.2). Fixed Appendix A J-MDN example (hash format, missing receiver_id, missing X-FideX header). Fixed test vector JWE header (added cty). Made receive_receipt REQUIRED in AS5 config endpoints schema (Appendix E.5). Updated conformance profile table (Section C.1).
 - 2026-02-23 (Phase 3): JSON Schema definitions (Appendix E) for routing header, envelope, J-MDN, error response, and AS5 config. Security guide restructured with 15-threat control matrix. Implementation guide expanded with comprehensive error handling patterns (Section 8)
 - 2026-02-23 (Phase 2): Document type registry (Section 3.3), payload_digest field, version negotiation (Section 6.2.1), partner de-registration (Section 6.5), AS5 config expanded with supported_versions/conformance_profile/supported_document_types, quick start guide
 - 2026-02-23 (Phase 1): Document hierarchy preamble, complete J-MDN spec (7 sub-sections), conformance profiles, interoperability test vectors, receipt_webhook made REQUIRED, timestamp format standardized

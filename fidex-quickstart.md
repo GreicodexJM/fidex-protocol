@@ -15,7 +15,7 @@ FideX (AS5) is the modern replacement for AS2/AS4 B2B messaging. It uses **REST 
 | Concept | What | How |
 |---------|------|-----|
 | **Envelope** | JSON wrapper with routing metadata + encrypted payload | `routing_header` (cleartext) + `encrypted_payload` (JWE) |
-| **Crypto** | Sign-then-encrypt: `JWE(JWS(payload))` | RS256 signature + RSA-OAEP/A256GCM encryption |
+| **Crypto** | Sign-then-encrypt: `JWE(JWS(payload))` | RS256 signature + RSA-OAEP/A256GCM encryption. JWE MUST include `"cty":"JWT"` header. |
 | **Receipt** | Asynchronous J-MDN proving delivery | Signed JSON posted to sender's webhook |
 
 ## Step 1: Send a Message (2 min)
@@ -29,7 +29,7 @@ curl -X POST http://localhost:8080/api/v1/transmit \
   -d '{
     "destination_partner_id": "urn:gln:0614141000012",
     "document_type": "GS1_ORDER_JSON",
-    "receipt_webhook": "https://your-erp.com/fidex/receipt",
+    "receipt_webhook": "https://your-erp.com/fidex/receipt",  
     "payload": {
       "order_id": "PO-2026-001",
       "total_amount": 2499.00

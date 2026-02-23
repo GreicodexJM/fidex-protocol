@@ -401,7 +401,6 @@ components:
       required:
         - destination_partner_id
         - document_type
-        - receipt_webhook
         - payload
       properties:
         destination_partner_id:
@@ -419,7 +418,9 @@ components:
           format: uri
           description: >
             HTTPS URL where the J-MDN receipt should be delivered after the
-            destination partner processes the message. REQUIRED for non-repudiation.
+            destination partner processes the message. OPTIONAL — when omitted,
+            the receiver delivers J-MDN to the sender's receive_receipt endpoint
+            from the AS5 configuration.
           example: "https://erp.mycompany.com/fidex/receipt"
         payload:
           type: object
@@ -461,7 +462,6 @@ components:
         - receiver_id
         - document_type
         - timestamp
-        - receipt_webhook
       properties:
         fidex_version:
           type: string
@@ -503,7 +503,8 @@ components:
           format: uri
           description: >
             HTTPS URL where the J-MDN receipt should be delivered.
-            REQUIRED for non-repudiation chain integrity. HTTP (non-TLS) is NOT allowed.
+            OPTIONAL — when omitted, receiver uses sender's receive_receipt
+            endpoint from AS5 configuration. HTTP (non-TLS) is NOT allowed.
           example: "https://api.sender.com/fidex/receipt"
 
     FidexEnvelope:
@@ -521,8 +522,9 @@ components:
           type: string
           description: >
             JWE compact serialization containing the signed (JWS) business document.
+            JWE header MUST include "cty":"JWT" per RFC 7516 §4.1.12.
             Structure: base64url(header).base64url(encrypted_key).base64url(iv).base64url(ciphertext).base64url(auth_tag)
-          example: "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.OKOawDo13g..."
+          example: "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00iLCJjdHkiOiJKV1QifQ.OKOawDo13g..."
 
     AcceptedResponse:
       type: object
@@ -657,19 +659,17 @@ components:
 
     JwkEntry:
       type: object
-      description: A single JSON Web Key per RFC 7517.
+      description: A single JSON Web Key per RFC 7517. Supports RSA and EC key types.
       required:
         - kty
         - use
         - kid
         - alg
-        - "n"
-        - e
       properties:
         kty:
           type: string
-          enum: [RSA]
-          description: Key type. MUST be "RSA" for FideX v1.0.
+          enum: [RSA, EC]
+          description: Key type. "RSA" for RSA keys, "EC" for Elliptic Curve keys.
           example: "RSA"
         use:
           type: string
@@ -682,17 +682,28 @@ components:
           example: "node-2026-02-sign-primary"
         alg:
           type: string
-          enum: [RS256, RSA-OAEP]
+          enum: [RS256, RS384, RS512, PS256, ES256, ES384, RSA-OAEP, RSA-OAEP-256]
           description: Algorithm for this key.
           example: "RS256"
         "n":
           type: string
-          description: RSA modulus (base64url-encoded). Minimum 2048 bits.
+          description: RSA modulus (base64url-encoded). Minimum 2048 bits. Required for RSA keys.
           example: "xGOr-H7A-PWXsz7d8kN6v..."
         e:
           type: string
-          description: RSA exponent (base64url-encoded). Typically "AQAB" (65537).
+          description: RSA exponent (base64url-encoded). Typically "AQAB" (65537). Required for RSA keys.
           example: "AQAB"
+        crv:
+          type: string
+          enum: [P-256, P-384]
+          description: EC curve name. Required for EC keys.
+          example: "P-256"
+        x:
+          type: string
+          description: EC X coordinate (base64url-encoded). Required for EC keys.
+        "y":
+          type: string
+          description: EC Y coordinate (base64url-encoded). Required for EC keys.
 
     AS5Configuration:
       type: object
@@ -759,6 +770,7 @@ components:
       type: object
       required:
         - receive_message
+        - receive_receipt
         - register
         - jwks
       properties:
@@ -770,6 +782,11 @@ components:
           type: string
           format: uri
           example: "https://fidex.acmesupply.com/api/v1/register"
+        receive_receipt:
+          type: string
+          format: uri
+          description: J-MDN receipt delivery endpoint (fallback when receipt_webhook is omitted).
+          example: "https://fidex.acmesupply.com/api/v1/receipt"
         jwks:
           type: string
           format: uri
@@ -886,6 +903,9 @@ components:
                 - RATE_LIMIT_EXCEEDED
                 - INTERNAL_ERROR
               example: "INVALID_ROUTING_HEADER"
+            duplicate_message:
+              type: string
+              description: Note - duplicate message_id returns HTTP 202, not an error.
             message:
               type: string
               description: Human-readable error description.

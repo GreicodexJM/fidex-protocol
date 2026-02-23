@@ -469,7 +469,7 @@ Every FideX transmission MUST include a cleartext JSON routing header. This desi
 | `receiver_id` | string | YES | URN identifying receiver organization |
 | `document_type` | string | YES | Business document type identifier |
 | `timestamp` | string | YES | ISO 8601 timestamp (UTC) when message was created |
-| `receipt_webhook` | string | NO | HTTPS URL where J-MDN should be delivered |
+| `receipt_webhook` | string | NO | HTTPS URL where J-MDN should be delivered. When omitted, receiver delivers to sender's `receive_receipt` endpoint from AS5 configuration. |
 
 **Field Constraints:**
 
@@ -673,9 +673,12 @@ Structure: `base64url(header).base64url(payload).base64url(signature)`
 {
   "alg": "RSA-OAEP",
   "enc": "A256GCM",
+  "cty": "JWT",
   "kid": "receiver-key-2026-02-primary"
 }
 ```
+
+> **Note:** The `cty` (content type) header parameter MUST be set to `"JWT"` when the JWE payload contains a nested JWS/JWT, per RFC 7516 §4.1.12.
 
 **Header Parameters:**
 
@@ -683,6 +686,7 @@ Structure: `base64url(header).base64url(payload).base64url(signature)`
 |-----------|-------|-------------|
 | `alg` | `RSA-OAEP` | REQUIRED. Key encryption algorithm |
 | `enc` | `A256GCM` | REQUIRED. Content encryption algorithm |
+| `cty` | `JWT` | REQUIRED. Content type (nested JWS/JWT) per RFC 7516 §4.1.12 |
 | `kid` | string | REQUIRED. Receiver's key ID from JWKS |
 
 **JWE Compact Serialization:**
@@ -756,6 +760,7 @@ Structure: `base64url(header).base64url(encrypted_key).base64url(iv).base64url(c
 
 | Operation | Algorithm | Notes |
 |-----------|-----------|-------|
+| Signature | ES256, ES384 | ECDSA — RECOMMENDED for new deployments |
 | Signature | RS384, RS512 | Stronger SHA variants |
 | Signature | PS256, PS384, PS512 | RSASSA-PSS |
 | Key Encryption | RSA-OAEP-256 | OAEP with SHA-256 |
@@ -1111,8 +1116,9 @@ Access-Control-Allow-Origin: *
 **Field Specifications:**
 
 **kty (Key Type):**
-- MUST be `"RSA"` for FideX v1.0
-- Future versions may support `"EC"` (Elliptic Curve) or `"OKP"` (Ed25519)
+- `"RSA"` for RSA keys (REQUIRED support)
+- `"EC"` for Elliptic Curve keys (RECOMMENDED for new deployments — ES256/P-256, ES384/P-384)
+- Future versions may support `"OKP"` (Ed25519/Ed448)
 
 **use (Public Key Use):**
 - `"sig"` - Used for signature verification (JWS)
@@ -1738,6 +1744,7 @@ FideX strictly separates the *network receipt* from the *business receipt*.
 When a FideX Node receives an HTTP POST, it must perform basic structural validation (Are the headers present? Is it a valid JWE string?).
 
 * If structurally valid, the Node returns **`HTTP 202 Accepted`**. This *does not* mean the document was successfully decrypted or ingested into the ERP.
+* **Idempotency:** Receivers MUST handle duplicate `message_id` values idempotently — if a message with the same `message_id` has already been accepted, return HTTP 202 again without reprocessing.
 
 ### 4.2 The Asynchronous Business Receipt (J-MDN)
 
@@ -1749,8 +1756,9 @@ To replace the legacy AS2 MDN (Message Disposition Notification), FideX introduc
 {
   "original_message_id": "fdx-uuid-1234-5678",
   "status": "DELIVERED",
-  "hash_verification": "sha256-hash-of-original-payload",
-  "timestamp": "2026-02-19T15:00:02Z",
+  "receiver_id": "urn:gln:0614141000012",
+  "hash_verification": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "timestamp": "2026-02-19T15:00:02.000Z",
   "error_log": null
 }
 
@@ -2738,12 +2746,14 @@ Content-Type: application/json
 POST /fidex/receipt HTTP/1.1
 Host: erp.mycompany.com
 Content-Type: application/json
+X-FideX-Original-Message-ID: fdx-a1b2c3d4-e5f6-g7h8
 
 {
   "original_message_id": "fdx-a1b2c3d4-e5f6-g7h8",
   "status": "DELIVERED",
-  "hash_verification": "sha256-9f86d081884c7d659a2feaa0c55ad015...",
-  "timestamp": "2026-02-20T18:30:02Z",
+  "receiver_id": "urn:gln:0614141000012",
+  "hash_verification": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "timestamp": "2026-02-20T18:30:02.000Z",
   "error_log": null,
   "signature": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJlY2VpdmVyLWtleS0xIn0..."
 }

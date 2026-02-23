@@ -180,6 +180,8 @@ This specification is licensed under the **Creative Commons Attribution 4.0 Inte
 
 You are free to share and adapt the material for any purpose, provided you give appropriate attribution.
 
+© 2026 [Greicodex](https://greicodex.com). All rights reserved.
+
 ## Status
 
 | Field | Value |
@@ -193,4 +195,16 @@ You are free to share and adapt the material for any purpose, provided you give 
 
 <p align="center">
   <em>FideX AS5 — Enterprise-grade B2B interchange for the modern web.</em>
+</p>
+
+<br/>
+
+<p align="center">
+  <a href="https://greicodex.com">
+    <img src="greicodex-logo.png" alt="Greicodex" width="100" />
+  </a>
+</p>
+<p align="center">
+  <sub>Designed &amp; developed by <a href="https://greicodex.com"><strong>Greicodex</strong></a></sub><br/>
+  <sub>© 2026 Greicodex — Building the future of enterprise interoperability</sub>
 </p>

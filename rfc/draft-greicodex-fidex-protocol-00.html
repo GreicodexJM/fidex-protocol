@@ -1,0 +1,3885 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>FideX Application Statement 5 (AS5) Protocol</title>
+<meta content="Javier Munoz" name="author">
+<meta content='
+       
+        This document specifies the FideX Protocol (AS5), a modern application-layer protocol
+        for secure Business-to-Business (B2B) message exchange. FideX provides cryptographic
+        non-repudiation, data integrity, and confidentiality using JOSE (JSON Object Signing
+        and Encryption) over HTTPS, replacing legacy AS2 and AS4 standards with a REST-oriented
+        approach accessible to modern web developers.
+       
+       
+        FideX adopts the "AS" naming lineage: AS2 ( ) used
+        S/MIME over HTTP; AS4 ( ) used SOAP/WS-Security;
+        AS5 (FideX) uses REST/JSON/JOSE over HTTPS.
+        This document defines the message format, cryptographic operations, partner discovery,
+        state management, acknowledgment receipts (J-MDN), and error handling.
+       
+    ' name="description">
+<meta content="xml2rfc 3.32.0" name="generator">
+<meta content="EDI" name="keyword">
+<meta content="B2B" name="keyword">
+<meta content="JOSE" name="keyword">
+<meta content="JWS" name="keyword">
+<meta content="JWE" name="keyword">
+<meta content="AS5" name="keyword">
+<meta content="electronic data interchange" name="keyword">
+<meta content="JSON Web Signature" name="keyword">
+<meta content="JSON Web Encryption" name="keyword">
+<meta content="draft-greicodex-fidex-protocol-00" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.32.0
+    Python 3.10.12
+    ConfigArgParse 1.7.3
+    google-i18n-address 3.1.1
+    intervaltree 3.2.1
+    Jinja2 3.1.5
+    lxml 6.0.2
+    platformdirs 4.4.0
+    pycountry 26.2.16
+    PyYAML 6.0.3
+    requests 2.32.5
+    wcwidth 0.6.0
+-->
+<link href="draft-greicodex-fidex-protocol-00.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-wrap: break-word;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+@media print {
+  svg {
+    max-height: 850px;
+    max-width: 660px;
+  }
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+.xref {
+  overflow-wrap: normal;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    max-width: 100%;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.refSubseries {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: upper-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code, dt tt, dt code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > blockquote:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+<link href="rfc-local.css" rel="stylesheet" type="text/css">
+<script type="application/javascript">async function addMetadata(){try{const e=document.styleSheets[0].cssRules;for(let t=0;t<e.length;t++)if(/#identifiers/.exec(e[t].selectorText)){const a=e[t].cssText.replace("#identifiers","#external-updates");document.styleSheets[0].insertRule(a,document.styleSheets[0].cssRules.length)}}catch(e){console.log(e)}const e=document.getElementById("external-metadata");if(e)try{var t,a="",o=function(e){const t=document.getElementsByTagName("meta");for(let a=0;a<t.length;a++)if(t[a].getAttribute("name")===e)return t[a].getAttribute("content");return""}("rfc.number");if(o){t="https://www.rfc-editor.org/rfc/rfc"+o+".json";try{const e=await fetch(t);a=await e.json()}catch(e){t=document.URL.indexOf("html")>=0?document.URL.replace(/html$/,"json"):document.URL+".json";const o=await fetch(t);a=await o.json()}}if(!a)return;e.style.display="block";const s="",d="https://datatracker.ietf.org/doc",n="https://datatracker.ietf.org/ipr/search",c="https://www.rfc-editor.org/info",l=a.doc_id.toLowerCase(),i=a.doc_id.slice(0,3).toLowerCase(),f=a.doc_id.slice(3).replace(/^0+/,""),u={status:"Status",obsoletes:"Obsoletes",obsoleted_by:"Obsoleted By",updates:"Updates",updated_by:"Updated By",see_also:"See Also",errata_url:"Errata"};let h="<dl style='overflow:hidden' id='external-updates'>";["status","obsoletes","obsoleted_by","updates","updated_by","see_also","errata_url"].forEach(e=>{if("status"==e){a[e]=a[e].toLowerCase();var t=a[e].split(" "),o=t.length,w="",p=1;for(let e=0;e<o;e++)p<o?w=w+r(t[e])+" ":w+=r(t[e]),p++;a[e]=w}else if("obsoletes"==e||"obsoleted_by"==e||"updates"==e||"updated_by"==e){var g,m="",b=1;g=a[e].length;for(let t=0;t<g;t++)a[e][t]&&(a[e][t]=String(a[e][t]).toLowerCase(),m=b<g?m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>, ":m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>",b++);a[e]=m}else if("see_also"==e){var y,L="",C=1;y=a[e].length;for(let t=0;t<y;t++)if(a[e][t]){a[e][t]=String(a[e][t]);var _=a[e][t].slice(0,3),v=a[e][t].slice(3).replace(/^0+/,"");L=C<y?"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>, ":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>, ":"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>",C++}a[e]=L}else if("errata_url"==e){var R="";R=a[e]?R+"<a href='"+a[e]+"'>Errata exist</a> | <a href='"+d+"/"+l+"'>Datatracker</a>| <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>":"<a href='"+d+"/"+l+"'>Datatracker</a> | <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>",a[e]=R}""!=a[e]?"Errata"==u[e]?h+=`<dt>More info:</dt><dd>${a[e]}</dd>`:h+=`<dt>${u[e]}:</dt><dd>${a[e]}</dd>`:"Errata"==u[e]&&(h+=`<dt>More info:</dt><dd>${a[e]}</dd>`)}),h+="</dl>",e.innerHTML=h}catch(e){console.log(e)}else console.log("Could not locate metadata <div> element");function r(e){return e.charAt(0).toUpperCase()+e.slice(1)}}window.removeEventListener("load",addMetadata),window.addEventListener("load",addMetadata);</script>
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">FideX AS5 Protocol</td>
+<td class="right">March 2026</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Munoz</td>
+<td class="center">Expires 17 September 2026</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Individual Submission</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-greicodex-fidex-protocol-00</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2026-03-16" class="published">16 March 2026</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Informational</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2026-09-17">17 September 2026</time></dd>
+<dt class="label-authors">Author:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">J. Munoz</div>
+<div class="org">Greicodex Software</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">FideX Application Statement 5 (AS5) Protocol</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">
+        This document specifies the FideX Protocol (AS5), a modern application-layer protocol
+        for secure Business-to-Business (B2B) message exchange. FideX provides cryptographic
+        non-repudiation, data integrity, and confidentiality using JOSE (JSON Object Signing
+        and Encryption) over HTTPS, replacing legacy AS2 and AS4 standards with a REST-oriented
+        approach accessible to modern web developers.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">
+        FideX adopts the "AS" naming lineage: AS2 (<span>[<a href="#RFC4130" class="cite xref">RFC4130</a>]</span>) used
+        S/MIME over HTTP; AS4 (<span>[<a href="#OASIS-ebMS" class="cite xref">OASIS-ebMS</a>]</span>) used SOAP/WS-Security;
+        AS5 (FideX) uses REST/JSON/JOSE over HTTPS.
+        This document defines the message format, cryptographic operations, partner discovery,
+        state management, acknowledgment receipts (J-MDN), and error handling.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+</section>
+<section class="note" id="section-note.1">
+      <h2 id="name-status-of-this-document">
+<a href="#name-status-of-this-document" class="section-name selfRef">Status of This Document</a>
+      </h2>
+<p id="section-note.1-1">
+        This Internet-Draft is submitted in full conformance with the provisions of BCP 78
+        and BCP 79. This document is a work in progress and represents the current thinking
+        of the FideX Protocol Working Group at Greicodex Software.<a href="#section-note.1-1" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 17 September 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2026 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-purpose" class="internal xref">Purpose</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.2">
+                <p id="section-toc.1-1.1.2.2.1" class="keepWithNext"><a href="#section-1.2" class="auto internal xref">1.2</a>.  <a href="#name-scope" class="internal xref">Scope</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.3">
+                <p id="section-toc.1-1.1.2.3.1" class="keepWithNext"><a href="#section-1.3" class="auto internal xref">1.3</a>.  <a href="#name-as-naming-lineage" class="internal xref">AS Naming Lineage</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.4">
+                <p id="section-toc.1-1.1.2.4.1"><a href="#section-1.4" class="auto internal xref">1.4</a>.  <a href="#name-terminology" class="internal xref">Terminology</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-transport-layer" class="internal xref">Transport Layer</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1">
+                <p id="section-toc.1-1.2.2.1.1"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-required-transport" class="internal xref">Required Transport</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2">
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-optional-transports" class="internal xref">Optional Transports</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.3">
+                <p id="section-toc.1-1.2.2.3.1"><a href="#section-2.3" class="auto internal xref">2.3</a>.  <a href="#name-request-method" class="internal xref">Request Method</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.4">
+                <p id="section-toc.1-1.2.2.4.1"><a href="#section-2.4" class="auto internal xref">2.4</a>.  <a href="#name-content-type" class="internal xref">Content Type</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.5">
+                <p id="section-toc.1-1.2.2.5.1"><a href="#section-2.5" class="auto internal xref">2.5</a>.  <a href="#name-message-size-limits" class="internal xref">Message Size Limits</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-message-structure" class="internal xref">Message Structure</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-message-envelope" class="internal xref">Message Envelope</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-routing-header" class="internal xref">Routing Header</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2.2.1">
+                    <p id="section-toc.1-1.3.2.2.2.1.1"><a href="#section-3.2.1" class="auto internal xref">3.2.1</a>.  <a href="#name-identifier-format" class="internal xref">Identifier Format</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3">
+                <p id="section-toc.1-1.3.2.3.1"><a href="#section-3.3" class="auto internal xref">3.3</a>.  <a href="#name-document-type-registry" class="internal xref">Document Type Registry</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3.2.1">
+                    <p id="section-toc.1-1.3.2.3.2.1.1"><a href="#section-3.3.1" class="auto internal xref">3.3.1</a>.  <a href="#name-standard-document-types" class="internal xref">Standard Document Types</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3.2.2">
+                    <p id="section-toc.1-1.3.2.3.2.2.1"><a href="#section-3.3.2" class="auto internal xref">3.3.2</a>.  <a href="#name-custom-document-types" class="internal xref">Custom Document Types</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3.2.3">
+                    <p id="section-toc.1-1.3.2.3.2.3.1"><a href="#section-3.3.3" class="auto internal xref">3.3.3</a>.  <a href="#name-receiver-behavior-for-docum" class="internal xref">Receiver Behavior for Document Types</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4">
+                <p id="section-toc.1-1.3.2.4.1"><a href="#section-3.4" class="auto internal xref">3.4</a>.  <a href="#name-encrypted-payload" class="internal xref">Encrypted Payload</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-cryptographic-requirements" class="internal xref">Cryptographic Requirements</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-signature-jws" class="internal xref">Signature (JWS)</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-encryption-jwe" class="internal xref">Encryption (JWE)</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.3">
+                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="auto internal xref">4.3</a>.  <a href="#name-payload-encoding" class="internal xref">Payload Encoding</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4">
+                <p id="section-toc.1-1.4.2.4.1"><a href="#section-4.4" class="auto internal xref">4.4</a>.  <a href="#name-sender-identity-verificatio" class="internal xref">Sender Identity Verification</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.5">
+                <p id="section-toc.1-1.4.2.5.1"><a href="#section-4.5" class="auto internal xref">4.5</a>.  <a href="#name-prohibited-algorithms" class="internal xref">Prohibited Algorithms</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-key-distribution" class="internal xref">Key Distribution</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-json-web-key-set-jwks-endpo" class="internal xref">JSON Web Key Set (JWKS) Endpoint</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-jwks-format" class="internal xref">JWKS Format</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3">
+                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="auto internal xref">5.3</a>.  <a href="#name-key-rotation" class="internal xref">Key Rotation</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-partner-discovery" class="internal xref">Partner Discovery</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-discovery-overview" class="internal xref">Discovery Overview</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-as5-configuration-endpoint" class="internal xref">AS5 Configuration Endpoint</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2.2.1">
+                    <p id="section-toc.1-1.6.2.2.2.1.1"><a href="#section-6.2.1" class="auto internal xref">6.2.1</a>.  <a href="#name-version-negotiation" class="internal xref">Version Negotiation</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-discovery-handshake" class="internal xref">Discovery Handshake</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.4">
+                <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-registration-security-requi" class="internal xref">Registration Security Requirements</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.5">
+                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-partner-de-registration" class="internal xref">Partner De-Registration</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-message-states-and-receipts" class="internal xref">Message States and Receipts</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-message-state-machine" class="internal xref">Message State Machine</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-synchronous-http-response" class="internal xref">Synchronous HTTP Response</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3">
+                <p id="section-toc.1-1.7.2.3.1"><a href="#section-7.3" class="auto internal xref">7.3</a>.  <a href="#name-asynchronous-receipt-j-mdn" class="internal xref">Asynchronous Receipt: J-MDN</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3.2.1">
+                    <p id="section-toc.1-1.7.2.3.2.1.1"><a href="#section-7.3.1" class="auto internal xref">7.3.1</a>.  <a href="#name-j-mdn-payload-schema" class="internal xref">J-MDN Payload Schema</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3.2.2">
+                    <p id="section-toc.1-1.7.2.3.2.2.1"><a href="#section-7.3.2" class="auto internal xref">7.3.2</a>.  <a href="#name-hash-verification" class="internal xref">Hash Verification</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3.2.3">
+                    <p id="section-toc.1-1.7.2.3.2.3.1"><a href="#section-7.3.3" class="auto internal xref">7.3.3</a>.  <a href="#name-j-mdn-signature-requirement" class="internal xref">J-MDN Signature Requirements</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3.2.4">
+                    <p id="section-toc.1-1.7.2.3.2.4.1"><a href="#section-7.3.4" class="auto internal xref">7.3.4</a>.  <a href="#name-j-mdn-error-codes" class="internal xref">J-MDN Error Codes</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3.2.5">
+                    <p id="section-toc.1-1.7.2.3.2.5.1"><a href="#section-7.3.5" class="auto internal xref">7.3.5</a>.  <a href="#name-j-mdn-delivery-protocol" class="internal xref">J-MDN Delivery Protocol</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3.2.6">
+                    <p id="section-toc.1-1.7.2.3.2.6.1"><a href="#section-7.3.6" class="auto internal xref">7.3.6</a>.  <a href="#name-j-mdn-delivery-retry-schedu" class="internal xref">J-MDN Delivery Retry Schedule</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.4">
+                <p id="section-toc.1-1.7.2.4.1"><a href="#section-7.4" class="auto internal xref">7.4</a>.  <a href="#name-sender-retry-semantics" class="internal xref">Sender Retry Semantics</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-error-handling" class="internal xref">Error Handling</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
+                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-http-status-codes" class="internal xref">HTTP Status Codes</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.2">
+                <p id="section-toc.1-1.8.2.2.1"><a href="#section-8.2" class="auto internal xref">8.2</a>.  <a href="#name-error-response-format" class="internal xref">Error Response Format</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.3">
+                <p id="section-toc.1-1.8.2.3.1"><a href="#section-8.3" class="auto internal xref">8.3</a>.  <a href="#name-standard-error-codes" class="internal xref">Standard Error Codes</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-threat-model" class="internal xref">Threat Model</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-implementation-security-req" class="internal xref">Implementation Security Requirements</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3">
+                <p id="section-toc.1-1.9.2.3.1"><a href="#section-9.3" class="auto internal xref">9.3</a>.  <a href="#name-key-management" class="internal xref">Key Management</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.4">
+                <p id="section-toc.1-1.9.2.4.1"><a href="#section-9.4" class="auto internal xref">9.4</a>.  <a href="#name-compliance-considerations" class="internal xref">Compliance Considerations</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.5">
+                <p id="section-toc.1-1.9.2.5.1"><a href="#section-9.5" class="auto internal xref">9.5</a>.  <a href="#name-deployment-note" class="internal xref">Deployment Note</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.1">
+                <p id="section-toc.1-1.11.2.1.1"><a href="#section-11.1" class="auto internal xref">11.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.2">
+                <p id="section-toc.1-1.11.2.2.1"><a href="#section-11.2" class="auto internal xref">11.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#appendix-A" class="auto internal xref"></a><a href="#name-appendix-a-complete-message" class="internal xref">Appendix A: Complete Message Example</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-appendix-b-glossary" class="internal xref">Appendix B: Glossary</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
+            <p id="section-toc.1-1.14.1"><a href="#appendix-C" class="auto internal xref"></a><a href="#name-appendix-c-conformance-prof" class="internal xref">Appendix C: Conformance Profiles</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1">
+                <p id="section-toc.1-1.14.2.1.1"><a href="#appendix-C.1" class="auto internal xref"></a><a href="#name-c1-fidex-core" class="internal xref">C.1 FideX Core</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.2">
+                <p id="section-toc.1-1.14.2.2.1"><a href="#appendix-C.2" class="auto internal xref"></a><a href="#name-c2-fidex-enhanced" class="internal xref">C.2 FideX Enhanced</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.3">
+                <p id="section-toc.1-1.14.2.3.1"><a href="#appendix-C.3" class="auto internal xref"></a><a href="#name-c3-fidex-edge" class="internal xref">C.3 FideX Edge</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
+            <p id="section-toc.1-1.15.1"><a href="#appendix-D" class="auto internal xref"></a><a href="#name-appendix-d-interoperability" class="internal xref">Appendix D: Interoperability Test Vectors</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
+            <p id="section-toc.1-1.16.1"><a href="#appendix-E" class="auto internal xref"></a><a href="#name-appendix-e-json-schema-defi" class="internal xref">Appendix E: JSON Schema Definitions</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.1">
+                <p id="section-toc.1-1.16.2.1.1"><a href="#appendix-E.1" class="auto internal xref"></a><a href="#name-e1-routing-header-schema" class="internal xref">E.1 Routing Header Schema</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.2">
+                <p id="section-toc.1-1.16.2.2.1"><a href="#appendix-E.2" class="auto internal xref"></a><a href="#name-e2-j-mdn-schema" class="internal xref">E.2 J-MDN Schema</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.3">
+                <p id="section-toc.1-1.16.2.3.1"><a href="#appendix-E.3" class="auto internal xref"></a><a href="#name-e3-as5-configuration-schema" class="internal xref">E.3 AS5 Configuration Schema</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17">
+            <p id="section-toc.1-1.17.1"><a href="#appendix-F" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<div id="purpose">
+<section id="section-1.1">
+        <h3 id="name-purpose">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-purpose" class="section-name selfRef">Purpose</a>
+        </h3>
+<p id="section-1.1-1">
+          FideX (Fast Integration for Digital Enterprises eXchange) defines a secure,
+          reliable message exchange protocol for B2B electronic data interchange. The
+          protocol ensures:<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1.1-2.1">
+            <strong>Non-repudiation:</strong> Cryptographic proof of message origin<a href="#section-1.1-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.1-2.2">
+            <strong>Integrity:</strong> Detection of message tampering<a href="#section-1.1-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.1-2.3">
+            <strong>Confidentiality:</strong> End-to-end encryption<a href="#section-1.1-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.1-2.4">
+            <strong>Reliability:</strong> Asynchronous acknowledgments with retry semantics<a href="#section-1.1-2.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="scope">
+<section id="section-1.2">
+        <h3 id="name-scope">
+<a href="#section-1.2" class="section-number selfRef">1.2. </a><a href="#name-scope" class="section-name selfRef">Scope</a>
+        </h3>
+<p id="section-1.2-1">This specification defines:<a href="#section-1.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1.2-2.1">Message format and structure<a href="#section-1.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-2.2">Cryptographic operations (sign-then-encrypt using JOSE)<a href="#section-1.2-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-2.3">Partner discovery and registration<a href="#section-1.2-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-2.4">State management and acknowledgments (J-MDN)<a href="#section-1.2-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-2.5">Error codes and handling<a href="#section-1.2-2.5" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-1.2-3">This specification does NOT define:<a href="#section-1.2-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1.2-4.1">Business document formats (the protocol is payload-agnostic)<a href="#section-1.2-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-4.2">Application-specific processing logic<a href="#section-1.2-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-4.3">Implementation details or code examples<a href="#section-1.2-4.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.2-4.4">Deployment or operational procedures<a href="#section-1.2-4.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="as-naming">
+<section id="section-1.3">
+        <h3 id="name-as-naming-lineage">
+<a href="#section-1.3" class="section-number selfRef">1.3. </a><a href="#name-as-naming-lineage" class="section-name selfRef">AS Naming Lineage</a>
+        </h3>
+<p id="section-1.3-1">
+          FideX adopts the "AS" (Application Statement) naming lineage from established
+          B2B interchange standards:<a href="#section-1.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1.3-2.1">
+            <strong>AS2</strong> (<span>[<a href="#RFC4130" class="cite xref">RFC4130</a>]</span>) --
+          MIME/S/MIME over HTTP (2005)<a href="#section-1.3-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.3-2.2">
+            <strong>AS4</strong> (<span>[<a href="#OASIS-ebMS" class="cite xref">OASIS-ebMS</a>]</span>) --
+          SOAP/WS-Security over HTTP (2013)<a href="#section-1.3-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-1.3-2.3">
+            <strong>AS5</strong> (FideX) --
+          REST/JSON/JOSE over HTTPS (2026)<a href="#section-1.3-2.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-1.3-3">
+          The designation signals evolutionary continuity while marking a generational
+          leap to modern web-native architecture. AS5 is implementable by any developer
+          with knowledge of REST APIs and standard JOSE libraries, without requiring
+          specialized B2B middleware.<a href="#section-1.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="terminology">
+<section id="section-1.4">
+        <h3 id="name-terminology">
+<a href="#section-1.4" class="section-number selfRef">1.4. </a><a href="#name-terminology" class="section-name selfRef">Terminology</a>
+        </h3>
+<p id="section-1.4-1">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+          "OPTIONAL" in this document are to be interpreted as described in
+          BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only
+          when, they appear in all capitals, as shown here.<a href="#section-1.4-1" class="pilcrow">¶</a></p>
+<p id="section-1.4-2">Additional terms used in this document:<a href="#section-1.4-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-1.4-3">
+          <dt id="section-1.4-3.1">Node</dt>
+          <dd style="margin-left: 1.5em" id="section-1.4-3.2">A FideX-compliant server capable of sending and receiving messages.<a href="#section-1.4-3.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.4-3.3">Partner</dt>
+          <dd style="margin-left: 1.5em" id="section-1.4-3.4">A trading partner with an established trust relationship.<a href="#section-1.4-3.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.4-3.5">Message</dt>
+          <dd style="margin-left: 1.5em" id="section-1.4-3.6">A business document wrapped in a FideX envelope.<a href="#section-1.4-3.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.4-3.7">J-MDN</dt>
+          <dd style="margin-left: 1.5em" id="section-1.4-3.8">JSON Message Disposition Notification  -- a signed receipt acknowledging
+          receipt and processing of a FideX message.<a href="#section-1.4-3.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.4-3.9">JWKS</dt>
+          <dd style="margin-left: 1.5em" id="section-1.4-3.10">JSON Web Key Set  -- a JSON structure representing a set of public keys.<a href="#section-1.4-3.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.4-3.11">AS5 Configuration</dt>
+          <dd style="margin-left: 1.5em" id="section-1.4-3.12">A JSON document published by a node describing its endpoints, supported
+          algorithms, and identity.<a href="#section-1.4-3.12" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="transport">
+<section id="section-2">
+      <h2 id="name-transport-layer">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-transport-layer" class="section-name selfRef">Transport Layer</a>
+      </h2>
+<div id="required-transport">
+<section id="section-2.1">
+        <h3 id="name-required-transport">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-required-transport" class="section-name selfRef">Required Transport</a>
+        </h3>
+<p id="section-2.1-1">
+          Nodes MUST support HTTP/1.1 over TLS 1.3 as defined in <span>[<a href="#RFC8446" class="cite xref">RFC8446</a>]</span>.
+          TLS 1.2 (<span>[<a href="#RFC5246" class="cite xref">RFC5246</a>]</span>) MAY be supported with Perfect Forward Secrecy
+          (ECDHE key exchange) as fallback for backward compatibility.<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1-2">Transport requirements:<a href="#section-2.1-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.1-3.1">Port 443 (HTTPS)<a href="#section-2.1-3.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-2.1-3.2">Valid certificate from a trusted Certificate Authority (CA)<a href="#section-2.1-3.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-2.1-3.3">Server Name Indication (SNI) per <span>[<a href="#RFC6066" class="cite xref">RFC6066</a>]</span><a href="#section-2.1-3.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-2.1-3.4">Full certificate chain validation<a href="#section-2.1-3.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="optional-transports">
+<section id="section-2.2">
+        <h3 id="name-optional-transports">
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-optional-transports" class="section-name selfRef">Optional Transports</a>
+        </h3>
+<p id="section-2.2-1">Nodes MAY additionally support:<a href="#section-2.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.2-2.1">
+            <strong>HTTP/2</strong> (<span>[<a href="#RFC9113" class="cite xref">RFC9113</a>]</span>):
+          For multiplexed connections and improved throughput.<a href="#section-2.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-2.2-2.2">
+            <strong>HTTP/3</strong> (<span>[<a href="#RFC9114" class="cite xref">RFC9114</a>]</span>): For connection resilience using QUIC.<a href="#section-2.2-2.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="request-method">
+<section id="section-2.3">
+        <h3 id="name-request-method">
+<a href="#section-2.3" class="section-number selfRef">2.3. </a><a href="#name-request-method" class="section-name selfRef">Request Method</a>
+        </h3>
+<p id="section-2.3-1">
+          All FideX message transmissions MUST use the HTTP POST method to the receiving
+          endpoint specified in the partner's AS5 configuration (see <a href="#discovery" class="auto internal xref">Section 6</a>).<a href="#section-2.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="content-type">
+<section id="section-2.4">
+        <h3 id="name-content-type">
+<a href="#section-2.4" class="section-number selfRef">2.4. </a><a href="#name-content-type" class="section-name selfRef">Content Type</a>
+        </h3>
+<p id="section-2.4-1">
+          FideX message envelopes MUST use <code>Content-Type: application/json</code>.
+          Registration requests MUST use <code>Content-Type: application/jose</code>
+          (see <a href="#discovery-handshake" class="auto internal xref">Section 6.3</a>).<a href="#section-2.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="message-size">
+<section id="section-2.5">
+        <h3 id="name-message-size-limits">
+<a href="#section-2.5" class="section-number selfRef">2.5. </a><a href="#name-message-size-limits" class="section-name selfRef">Message Size Limits</a>
+        </h3>
+<p id="section-2.5-1">
+          Implementations MUST accept messages up to 10 megabytes (complete HTTP request body).
+          Implementations MAY accept larger messages by prior bilateral agreement.
+          Senders MUST NOT assume support above 10 MB without prior explicit agreement.
+          Implementations SHOULD reject oversized messages with HTTP 413 and the error
+          code <code>PAYLOAD_TOO_LARGE</code> (see <a href="#error-codes" class="auto internal xref">Section 8.3</a>).<a href="#section-2.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="message-structure">
+<section id="section-3">
+      <h2 id="name-message-structure">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-message-structure" class="section-name selfRef">Message Structure</a>
+      </h2>
+<div id="envelope">
+<section id="section-3.1">
+        <h3 id="name-message-envelope">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-message-envelope" class="section-name selfRef">Message Envelope</a>
+        </h3>
+<p id="section-3.1-1">
+          A FideX message envelope consists of exactly two top-level JSON fields:<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-3.1-2">
+<pre>
+{
+  "routing_header": { ... },
+  "encrypted_payload": "eyJhbGc..."
+}
+</pre><a href="#section-3.1-2" class="pilcrow">¶</a>
+</div>
+<p id="section-3.1-3">
+          The <code>routing_header</code> is cleartext JSON containing message metadata
+          readable by intermediate infrastructure without decryption. The
+          <code>encrypted_payload</code> is a JWE compact serialization that wraps the
+          signed business document. These two fields are the ONLY top-level fields
+          in a FideX message envelope.<a href="#section-3.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="routing-header">
+<section id="section-3.2">
+        <h3 id="name-routing-header">
+<a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-routing-header" class="section-name selfRef">Routing Header</a>
+        </h3>
+<p id="section-3.2-1">
+          The routing header is a cleartext JSON object conveying message routing
+          metadata. It MUST contain the following fields:<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-3.2-2">
+          <dt id="section-3.2-2.1">fidex_version</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.2">
+            (string, REQUIRED) Protocol version in semantic "major.minor" format, e.g., "1.0".<a href="#section-3.2-2.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.3">message_id</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.4">
+            (string, REQUIRED) Globally unique message identifier. UUID v4
+            (<span>[<a href="#RFC9562" class="cite xref">RFC9562</a>]</span>) with an "fdx-" prefix is RECOMMENDED
+            (e.g., "fdx-550e8400-e29b-41d4-a716-446655440000").<a href="#section-3.2-2.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.5">sender_id</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.6">
+            (string, REQUIRED) URN of the sending organization. See
+            <a href="#identifier-format" class="auto internal xref">Section 3.2.1</a> for valid formats.<a href="#section-3.2-2.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.7">receiver_id</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.8">
+            (string, REQUIRED) URN of the receiving organization. See
+            <a href="#identifier-format" class="auto internal xref">Section 3.2.1</a> for valid formats.<a href="#section-3.2-2.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.9">document_type</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.10">
+            (string, REQUIRED) Business document type identifier. MUST match the pattern
+            <code>^[A-Z0-9_]+$</code>. See <a href="#document-type-registry" class="auto internal xref">Section 3.3</a>.<a href="#section-3.2-2.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.11">timestamp</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.12">
+            (string, REQUIRED) ISO 8601 UTC timestamp with millisecond precision.
+            Format: <code>YYYY-MM-DDTHH:mm:ss.SSSZ</code>. The UTC designator "Z" MUST
+            be used; no local timezone offsets are permitted.<a href="#section-3.2-2.12" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.13">receipt_webhook</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.14">
+            (string, OPTIONAL) HTTPS URL where the J-MDN receipt SHOULD be delivered.
+            HTTP (non-TLS) is NOT allowed. When omitted, the receiver MUST deliver
+            the J-MDN to the sender's <code>receive_receipt</code> endpoint from the
+            sender's AS5 configuration (see <a href="#jmdn-delivery" class="auto internal xref">Section 7.3.5</a>).<a href="#section-3.2-2.14" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-2.15">payload_digest</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-2.16">
+            (string, OPTIONAL) SHA-256 digest of the <code>encrypted_payload</code> field
+            value. Computed as "sha256:" followed by the lowercase hexadecimal encoding
+            of SHA-256 applied to the UTF-8 byte representation of the
+            <code>encrypted_payload</code> string as it appears in the JSON envelope.
+            Enables routing-layer integrity checks without decryption.<a href="#section-3.2-2.16" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-3.2-3">
+          Extension fields MAY be included and MUST use the prefix "x-" to avoid
+          collision with future standard fields. Implementations MUST ignore unknown
+          extension fields without error.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
+<div id="identifier-format">
+<section id="section-3.2.1">
+          <h4 id="name-identifier-format">
+<a href="#section-3.2.1" class="section-number selfRef">3.2.1. </a><a href="#name-identifier-format" class="section-name selfRef">Identifier Format</a>
+          </h4>
+<p id="section-3.2.1-1">
+            The <code>sender_id</code> and <code>receiver_id</code> fields MUST use URN format.
+            The following URN namespaces are recognized:<a href="#section-3.2.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.2.1-2.1">
+              <code>urn:gln:{gln}</code>  -- GS1 Global Location Number<a href="#section-3.2.1-2.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-3.2.1-2.2">
+              <code>urn:duns:{duns}</code>  -- D-U-N-S Number<a href="#section-3.2.1-2.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-3.2.1-2.3">
+              <code>urn:lei:{lei}</code>  -- Legal Entity Identifier (ISO 17442)<a href="#section-3.2.1-2.3" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-3.2.1-2.4">
+              <code>urn:tin:{tin}</code>  -- Tax Identification Number<a href="#section-3.2.1-2.4" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-3.2.1-2.5">
+              <code>urn:custom:{identifier}</code>  -- Organization-defined identifier<a href="#section-3.2.1-2.5" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="document-type-registry">
+<section id="section-3.3">
+        <h3 id="name-document-type-registry">
+<a href="#section-3.3" class="section-number selfRef">3.3. </a><a href="#name-document-type-registry" class="section-name selfRef">Document Type Registry</a>
+        </h3>
+<p id="section-3.3-1">
+          The <code>document_type</code> field uses a two-tier naming system to accommodate
+          both standardized inter-organization document types and organization-specific
+          custom types.<a href="#section-3.3-1" class="pilcrow">¶</a></p>
+<div id="standard-document-types">
+<section id="section-3.3.1">
+          <h4 id="name-standard-document-types">
+<a href="#section-3.3.1" class="section-number selfRef">3.3.1. </a><a href="#name-standard-document-types" class="section-name selfRef">Standard Document Types</a>
+          </h4>
+<p id="section-3.3.1-1">
+            The following standard document types are defined by the FideX Working Group.
+            Standard types use uppercase alphanumeric characters and underscores, matching
+            the pattern <code>^[A-Z0-9_]+$</code>. GS1 document types are defined in
+            <span>[<a href="#GS1-JSON" class="cite xref">GS1-JSON</a>]</span>.<a href="#section-3.3.1-1" class="pilcrow">¶</a></p>
+<span id="name-standard-fidex-document-typ"></span><table class="center" id="table-1">
+            <caption>
+<a href="#table-1" class="selfRef">Table 1</a>:
+<a href="#name-standard-fidex-document-typ" class="selfRef">Standard FideX Document Types</a>
+            </caption>
+<thead>
+              <tr>
+                <th class="text-left" rowspan="1" colspan="1">Type Identifier</th>
+                <th class="text-left" rowspan="1" colspan="1">Standard</th>
+                <th class="text-left" rowspan="1" colspan="1">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">GS1_ORDER_JSON</td>
+                <td class="text-left" rowspan="1" colspan="1">GS1</td>
+                <td class="text-left" rowspan="1" colspan="1">Purchase order (JSON binding)</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">GS1_INVOICE_JSON</td>
+                <td class="text-left" rowspan="1" colspan="1">GS1</td>
+                <td class="text-left" rowspan="1" colspan="1">Commercial invoice (JSON binding)</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">GS1_DESADV_JSON</td>
+                <td class="text-left" rowspan="1" colspan="1">GS1</td>
+                <td class="text-left" rowspan="1" colspan="1">Despatch advice (JSON binding)</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">GS1_RECADV_JSON</td>
+                <td class="text-left" rowspan="1" colspan="1">GS1</td>
+                <td class="text-left" rowspan="1" colspan="1">Receiving advice (JSON binding)</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">GS1_CATALOG_JSON</td>
+                <td class="text-left" rowspan="1" colspan="1">GS1</td>
+                <td class="text-left" rowspan="1" colspan="1">Product catalog (JSON binding)</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">X12_850</td>
+                <td class="text-left" rowspan="1" colspan="1">ANSI X12</td>
+                <td class="text-left" rowspan="1" colspan="1">Purchase order</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">X12_810</td>
+                <td class="text-left" rowspan="1" colspan="1">ANSI X12</td>
+                <td class="text-left" rowspan="1" colspan="1">Invoice</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">X12_856</td>
+                <td class="text-left" rowspan="1" colspan="1">ANSI X12</td>
+                <td class="text-left" rowspan="1" colspan="1">Advance ship notice</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">EDIFACT_ORDERS</td>
+                <td class="text-left" rowspan="1" colspan="1">UN/EDIFACT</td>
+                <td class="text-left" rowspan="1" colspan="1">Purchase order message</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">EDIFACT_INVOIC</td>
+                <td class="text-left" rowspan="1" colspan="1">UN/EDIFACT</td>
+                <td class="text-left" rowspan="1" colspan="1">Invoice message</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">EDIFACT_DESADV</td>
+                <td class="text-left" rowspan="1" colspan="1">UN/EDIFACT</td>
+                <td class="text-left" rowspan="1" colspan="1">Despatch advice message</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">UBL_ORDER_21</td>
+                <td class="text-left" rowspan="1" colspan="1">OASIS UBL 2.1</td>
+                <td class="text-left" rowspan="1" colspan="1">Order document</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">UBL_INVOICE_21</td>
+                <td class="text-left" rowspan="1" colspan="1">OASIS UBL 2.1</td>
+                <td class="text-left" rowspan="1" colspan="1">Invoice document</td>
+              </tr>
+            </tbody>
+          </table>
+</section>
+</div>
+<div id="custom-document-types">
+<section id="section-3.3.2">
+          <h4 id="name-custom-document-types">
+<a href="#section-3.3.2" class="section-number selfRef">3.3.2. </a><a href="#name-custom-document-types" class="section-name selfRef">Custom Document Types</a>
+          </h4>
+<p id="section-3.3.2-1">
+            Organizations MAY define custom document types using reverse domain notation
+            to avoid collision with standard types and with other organizations' custom types.<a href="#section-3.3.2-1" class="pilcrow">¶</a></p>
+<p id="section-3.3.2-2">
+            Custom types MUST follow the pattern: <code>{TLD}_{ORG}_{DOCTYPE}_{VERSION}</code>,
+            for example: <code>COM_ACME_WAREHOUSE_RECEIPT_V2</code>.<a href="#section-3.3.2-2" class="pilcrow">¶</a></p>
+<p id="section-3.3.2-3">
+            Custom types MUST NOT use the reserved prefixes: <code>GS1_</code>,
+            <code>X12_</code>, <code>EDIFACT_</code>, or <code>UBL_</code>.<a href="#section-3.3.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="receiver-document-type-behavior">
+<section id="section-3.3.3">
+          <h4 id="name-receiver-behavior-for-docum">
+<a href="#section-3.3.3" class="section-number selfRef">3.3.3. </a><a href="#name-receiver-behavior-for-docum" class="section-name selfRef">Receiver Behavior for Document Types</a>
+          </h4>
+<p id="section-3.3.3-1">Receiver nodes:<a href="#section-3.3.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.3.3-2.1">MUST accept messages with any syntactically valid <code>document_type</code>.<a href="#section-3.3.3-2.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-3.3.3-2.2">SHOULD return a J-MDN with error code <code>UNKNOWN_DOCUMENT_TYPE</code>
+            for types they cannot process.<a href="#section-3.3.3-2.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-3.3.3-2.3">MUST NOT reject messages at the HTTP level solely because of an
+            unknown <code>document_type</code>. The J-MDN mechanism MUST be used instead.<a href="#section-3.3.3-2.3" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="encrypted-payload-field">
+<section id="section-3.4">
+        <h3 id="name-encrypted-payload">
+<a href="#section-3.4" class="section-number selfRef">3.4. </a><a href="#name-encrypted-payload" class="section-name selfRef">Encrypted Payload</a>
+        </h3>
+<p id="section-3.4-1">
+          The <code>encrypted_payload</code> field contains a JWE (JSON Web Encryption)
+          token in compact serialization as defined in <span>[<a href="#RFC7516" class="cite xref">RFC7516</a>]</span>. The
+          JWE encrypts a JWS (JSON Web Signature) token as defined in
+          <span>[<a href="#RFC7515" class="cite xref">RFC7515</a>]</span>, creating a nested "sign-then-encrypt" structure:<a href="#section-3.4-1" class="pilcrow">¶</a></p>
+<div class="lang-text sourcecode" id="section-3.4-2">
+<pre>
+JWE( JWS( business_document ) )
+</pre><a href="#section-3.4-2" class="pilcrow">¶</a>
+</div>
+<p id="section-3.4-3">
+          This pattern ensures both authenticity (the signature is inside the
+          encryption envelope, protecting it from substitution) and confidentiality
+          (the business content is encrypted end-to-end).<a href="#section-3.4-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="cryptography">
+<section id="section-4">
+      <h2 id="name-cryptographic-requirements">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-cryptographic-requirements" class="section-name selfRef">Cryptographic Requirements</a>
+      </h2>
+<div id="jws-signature">
+<section id="section-4.1">
+        <h3 id="name-signature-jws">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-signature-jws" class="section-name selfRef">Signature (JWS)</a>
+        </h3>
+<p id="section-4.1-1">
+          Messages MUST be signed using the sender's private key before encryption.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1-2">
+          The REQUIRED signing algorithm is <strong>RS256</strong>
+          (RSASSA-PKCS1-v1_5 with SHA-256) as defined in <span>[<a href="#RFC7518" class="cite xref">RFC7518</a>]</span>.<a href="#section-4.1-2" class="pilcrow">¶</a></p>
+<p id="section-4.1-3">The following signing algorithms are OPTIONAL:<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.1-4.1">RS384, RS512  -- stronger RSA variants<a href="#section-4.1-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.1-4.2">PS256, PS384, PS512  -- RSA-PSS variants<a href="#section-4.1-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.1-4.3">ES256 (ECDSA with P-256 and SHA-256)  -- RECOMMENDED for new deployments<a href="#section-4.1-4.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.1-4.4">ES384 (ECDSA with P-384 and SHA-384)<a href="#section-4.1-4.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-4.1-5">
+          Minimum key sizes: 2048 bits for RSA (4096 bits RECOMMENDED); P-256 minimum
+          for ECDSA (P-384 RECOMMENDED).<a href="#section-4.1-5" class="pilcrow">¶</a></p>
+<p id="section-4.1-6">The JWS Protected Header MUST include:<a href="#section-4.1-6" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-4.1-7">
+<pre>
+{
+  "alg": "RS256",
+  "kid": "{sender-key-id}"
+}
+</pre><a href="#section-4.1-7" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="jwe-encryption">
+<section id="section-4.2">
+        <h3 id="name-encryption-jwe">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-encryption-jwe" class="section-name selfRef">Encryption (JWE)</a>
+        </h3>
+<p id="section-4.2-1">
+          Signed messages MUST be encrypted using the receiver's public key.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.2-2">The REQUIRED algorithms are:<a href="#section-4.2-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.2-3.1">
+            <strong>Key Encryption:</strong> RSA-OAEP as defined in <span>[<a href="#RFC7518" class="cite xref">RFC7518</a>]</span><a href="#section-4.2-3.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.2-3.2">
+            <strong>Content Encryption:</strong> A256GCM (AES-256-GCM)<a href="#section-4.2-3.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-4.2-4">The JWE Protected Header MUST include:<a href="#section-4.2-4" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-4.2-5">
+<pre>
+{
+  "alg": "RSA-OAEP",
+  "enc": "A256GCM",
+  "cty": "JWT",
+  "kid": "{receiver-key-id}"
+}
+</pre><a href="#section-4.2-5" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2-6">
+          The <code>cty</code> (content type) header parameter MUST be set to "JWT" to indicate
+          the JWE payload contains a nested JWS/JWT token, per <span>[<a href="#RFC7516" class="cite xref">RFC7516</a>]</span>
+          Section 4.1.12. This is required for correct processing of nested tokens.<a href="#section-4.2-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="payload-encoding">
+<section id="section-4.3">
+        <h3 id="name-payload-encoding">
+<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-payload-encoding" class="section-name selfRef">Payload Encoding</a>
+        </h3>
+<p id="section-4.3-1">
+          The JWS payload MUST be the UTF-8 encoding of the JSON-serialized business document.
+          Binary payloads (images, PDFs, etc.) MUST be base64-encoded before JWS signing.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sender-identity">
+<section id="section-4.4">
+        <h3 id="name-sender-identity-verificatio">
+<a href="#section-4.4" class="section-number selfRef">4.4. </a><a href="#name-sender-identity-verificatio" class="section-name selfRef">Sender Identity Verification</a>
+        </h3>
+<p id="section-4.4-1">
+          Receivers MUST verify that the JWS signing key identified by <code>kid</code> in the
+          JWS header belongs to the partner identified by <code>sender_id</code> in the routing
+          header. Specifically:<a href="#section-4.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.4-2.1">The <code>kid</code> MUST resolve to a public key in the sender's JWKS.<a href="#section-4.4-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.4-2.2">The sender's JWKS MUST be fetched from the <code>public_domain</code> associated
+          with the <code>sender_id</code> in the local partner registry.<a href="#section-4.4-2.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-4.4-3">
+          This prevents cross-partner key substitution attacks where an attacker uses a
+          valid key from one partner to impersonate another.<a href="#section-4.4-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="prohibited-algorithms">
+<section id="section-4.5">
+        <h3 id="name-prohibited-algorithms">
+<a href="#section-4.5" class="section-number selfRef">4.5. </a><a href="#name-prohibited-algorithms" class="section-name selfRef">Prohibited Algorithms</a>
+        </h3>
+<p id="section-4.5-1">Implementations MUST NOT use:<a href="#section-4.5-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.5-2.1">The <code>none</code> algorithm (unsigned tokens)<a href="#section-4.5-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.5-2.2">Symmetric signature algorithms (HS256, HS384, HS512)<a href="#section-4.5-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.5-2.3">RSA keys smaller than 2048 bits<a href="#section-4.5-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-4.5-2.4">Deprecated algorithms: MD5, SHA-1-based signatures<a href="#section-4.5-2.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="key-distribution">
+<section id="section-5">
+      <h2 id="name-key-distribution">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-key-distribution" class="section-name selfRef">Key Distribution</a>
+      </h2>
+<div id="jwks-endpoint">
+<section id="section-5.1">
+        <h3 id="name-json-web-key-set-jwks-endpo">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-json-web-key-set-jwks-endpo" class="section-name selfRef">JSON Web Key Set (JWKS) Endpoint</a>
+        </h3>
+<p id="section-5.1-1">
+          Nodes MUST publish their public keys via a JWKS endpoint at the well-known URI:<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<div class="lang-text sourcecode" id="section-5.1-2">
+<pre>
+https://{public_domain}/.well-known/jwks.json
+</pre><a href="#section-5.1-2" class="pilcrow">¶</a>
+</div>
+<p id="section-5.1-3">This endpoint:<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5.1-4.1">MUST be publicly accessible without authentication.<a href="#section-5.1-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-5.1-4.2">MUST return <code>Content-Type: application/json</code>.<a href="#section-5.1-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-5.1-4.3">SHOULD include <code>Cache-Control</code> headers (1 hour RECOMMENDED).<a href="#section-5.1-4.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="jwks-format">
+<section id="section-5.2">
+        <h3 id="name-jwks-format">
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-jwks-format" class="section-name selfRef">JWKS Format</a>
+        </h3>
+<p id="section-5.2-1">
+          Per <span>[<a href="#RFC7517" class="cite xref">RFC7517</a>]</span>, keys MUST include at minimum the following fields.
+          An RSA signing key example:<a href="#section-5.2-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-5.2-2">
+<pre>
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "kid": "acme-sign-rsa-2026-01",
+      "alg": "RS256",
+      "n": "{base64url-encoded-modulus}",
+      "e": "AQAB"
+    }
+  ]
+}
+</pre><a href="#section-5.2-2" class="pilcrow">¶</a>
+</div>
+<p id="section-5.2-3">An EC signing key example:<a href="#section-5.2-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-5.2-4">
+<pre>
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "use": "sig",
+      "kid": "acme-sign-ec-2026-01",
+      "alg": "ES256",
+      "crv": "P-256",
+      "x": "{base64url-x-coordinate}",
+      "y": "{base64url-y-coordinate}"
+    }
+  ]
+}
+</pre><a href="#section-5.2-4" class="pilcrow">¶</a>
+</div>
+<p id="section-5.2-5">Field semantics:<a href="#section-5.2-5" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-5.2-6">
+          <dt id="section-5.2-6.1">kty</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-6.2">Key type: "RSA" or "EC".<a href="#section-5.2-6.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.2-6.3">use</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-6.4">"sig" for signing keys; "enc" for encryption keys.<a href="#section-5.2-6.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.2-6.5">kid</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-6.6">Unique key identifier used in JWS/JWE headers.<a href="#section-5.2-6.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.2-6.7">alg</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-6.8">Algorithm for this key (RS256, ES256, RSA-OAEP, etc.).<a href="#section-5.2-6.8" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="key-rotation">
+<section id="section-5.3">
+        <h3 id="name-key-rotation">
+<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-key-rotation" class="section-name selfRef">Key Rotation</a>
+        </h3>
+<p id="section-5.3-1">
+          Implementations SHOULD rotate keys annually. During rotation, the following
+          procedure MUST be followed to ensure uninterrupted partner communication:<a href="#section-5.3-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-2">
+          <li id="section-5.3-2.1">Publish the new key alongside the old key in the JWKS.<a href="#section-5.3-2.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-5.3-2.2">Maintain both keys for a transition period (30-60 days RECOMMENDED).<a href="#section-5.3-2.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-5.3-2.3">Begin signing new outbound messages with the new key after partners
+          have had time to cache it.<a href="#section-5.3-2.3" class="pilcrow">¶</a>
+</li>
+          <li id="section-5.3-2.4">Remove the old key from the JWKS after the transition period.<a href="#section-5.3-2.4" class="pilcrow">¶</a>
+</li>
+        </ol>
+<p id="section-5.3-3">
+          The <code>kid</code> value SHOULD encode the purpose and date to aid key management,
+          e.g., "org-sign-rsa-2026-01".<a href="#section-5.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="discovery">
+<section id="section-6">
+      <h2 id="name-partner-discovery">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-partner-discovery" class="section-name selfRef">Partner Discovery</a>
+      </h2>
+<div id="discovery-overview">
+<section id="section-6.1">
+        <h3 id="name-discovery-overview">
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-discovery-overview" class="section-name selfRef">Discovery Overview</a>
+        </h3>
+<p id="section-6.1-1">
+          Partner discovery enables automated trading partner onboarding without manual
+          certificate exchange. The process consists of four phases:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.1-2">
+          <li id="section-6.1-2.1">Configuration discovery<a href="#section-6.1-2.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.1-2.2">Key retrieval<a href="#section-6.1-2.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.1-2.3">Signed registration<a href="#section-6.1-2.3" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.1-2.4">Mutual confirmation<a href="#section-6.1-2.4" class="pilcrow">¶</a>
+</li>
+        </ol>
+<p id="section-6.1-3">
+          The AS5 configuration URL MAY be distributed via QR code, email, or a trading
+          partner portal. The protocol is designed so that scanning a QR code initiates
+          fully automated mutual trust establishment.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="as5-config">
+<section id="section-6.2">
+        <h3 id="name-as5-configuration-endpoint">
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-as5-configuration-endpoint" class="section-name selfRef">AS5 Configuration Endpoint</a>
+        </h3>
+<p id="section-6.2-1">
+          Nodes MUST expose an AS5 configuration document at an HTTPS URL. This URL:<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-6.2-2.1">MAY be at any path (no required well-known location).<a href="#section-6.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.2-2.2">MAY include a single-use security token as a query parameter.<a href="#section-6.2-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.2-2.3">SHOULD be shareable via QR code.<a href="#section-6.2-2.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-6.2-3">The AS5 configuration document structure:<a href="#section-6.2-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-6.2-4">
+<pre>
+{
+  "fidex_version": "1.0",
+  "supported_versions": ["1.0"],
+  "conformance_profile": "core",
+  "node_id": "urn:gln:1234567890123",
+  "organization_name": "Example Corp",
+  "public_domain": "fidex.example.com",
+  "supported_document_types": ["GS1_ORDER_JSON", "GS1_INVOICE_JSON"],
+  "endpoints": {
+    "receive_message": "https://fidex.example.com/api/v1/receive",
+    "receive_receipt": "https://fidex.example.com/api/v1/receipt",
+    "register": "https://fidex.example.com/api/v1/register",
+    "jwks": "https://fidex.example.com/.well-known/jwks.json"
+  },
+  "security": {
+    "signature_algorithm": "RS256",
+    "encryption_algorithm": "RSA-OAEP",
+    "content_encryption": "A256GCM",
+    "minimum_key_size": 2048
+  }
+}
+</pre><a href="#section-6.2-4" class="pilcrow">¶</a>
+</div>
+<p id="section-6.2-5">Required fields in the AS5 configuration:<a href="#section-6.2-5" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-6.2-6">
+          <dt id="section-6.2-6.1">fidex_version</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.2">Current active protocol version (string, REQUIRED).<a href="#section-6.2-6.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.3">supported_versions</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.4">Array of all protocol versions this node supports (array, REQUIRED).<a href="#section-6.2-6.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.5">node_id</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.6">URN identifier for this node (string, REQUIRED).<a href="#section-6.2-6.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.7">organization_name</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.8">Human-readable organization name (string, REQUIRED).<a href="#section-6.2-6.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.9">public_domain</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.10">Public-facing domain name hosting JWKS and endpoints (string, REQUIRED).<a href="#section-6.2-6.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.11">endpoints</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.12">Object containing service endpoint URLs (object, REQUIRED). MUST include: receive_message, receive_receipt, register, jwks.<a href="#section-6.2-6.12" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.13">security</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.14">Cryptographic algorithm declarations (object, REQUIRED).<a href="#section-6.2-6.14" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.15">conformance_profile</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.16">"core", "enhanced", or "edge" (string, OPTIONAL).<a href="#section-6.2-6.16" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-6.2-6.17">supported_document_types</dt>
+          <dd style="margin-left: 1.5em" id="section-6.2-6.18">Array of document_type identifiers this node processes (array, OPTIONAL).<a href="#section-6.2-6.18" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<div id="version-negotiation">
+<section id="section-6.2.1">
+          <h4 id="name-version-negotiation">
+<a href="#section-6.2.1" class="section-number selfRef">6.2.1. </a><a href="#name-version-negotiation" class="section-name selfRef">Version Negotiation</a>
+          </h4>
+<p id="section-6.2.1-1">
+            When two nodes with different supported versions communicate, the sender MUST:<a href="#section-6.2.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.2.1-2">
+            <li id="section-6.2.1-2.1">Retrieve the receiver's <code>supported_versions</code> from their AS5 configuration.<a href="#section-6.2.1-2.1" class="pilcrow">¶</a>
+</li>
+            <li id="section-6.2.1-2.2">Select the highest version present in BOTH <code>supported_versions</code> arrays.<a href="#section-6.2.1-2.2" class="pilcrow">¶</a>
+</li>
+            <li id="section-6.2.1-2.3">Set <code>fidex_version</code> in the routing header to the negotiated version.<a href="#section-6.2.1-2.3" class="pilcrow">¶</a>
+</li>
+          </ol>
+<p id="section-6.2.1-3">
+            The receiver MUST reject messages with a <code>fidex_version</code> not present in its
+            <code>supported_versions</code>.<a href="#section-6.2.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.2.1-4">
+            If no common version exists, the sender MUST NOT transmit and SHOULD report
+            an incompatibility error to the local system.<a href="#section-6.2.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="discovery-handshake">
+<section id="section-6.3">
+        <h3 id="name-discovery-handshake">
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-discovery-handshake" class="section-name selfRef">Discovery Handshake</a>
+        </h3>
+<p id="section-6.3-1">
+          The four-phase discovery handshake proceeds as follows:<a href="#section-6.3-1" class="pilcrow">¶</a></p>
+<p id="section-6.3-2"><strong>Phase 1  -- Initiator Discovers Responder:</strong><a href="#section-6.3-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.3-3">
+          <li id="section-6.3-3.1">Initiator obtains the responder's AS5 configuration URL.<a href="#section-6.3-3.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-3.2">Initiator fetches the responder's AS5 configuration document.<a href="#section-6.3-3.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-3.3">Initiator fetches the responder's JWKS from the well-known endpoint.<a href="#section-6.3-3.3" class="pilcrow">¶</a>
+</li>
+        </ol>
+<p id="section-6.3-4"><strong>Phase 2  -- Initiator Registers:</strong><a href="#section-6.3-4" class="pilcrow">¶</a></p>
+<p id="section-6.3-5">The initiator constructs and submits a signed registration payload:<a href="#section-6.3-5" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-6.3-6">
+<pre>
+{
+  "fidex_version": "1.0",
+  "initiator_node_id": "urn:gln:...",
+  "initiator_as5_config_url": "https://...",
+  "security_token": "...",
+  "timestamp": "2026-03-09T19:00:00.000Z"
+}
+</pre><a href="#section-6.3-6" class="pilcrow">¶</a>
+</div>
+<ol start="1" type="1" class="normal type-1" id="section-6.3-7">
+          <li id="section-6.3-7.1">Initiator constructs the registration payload as shown above.<a href="#section-6.3-7.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-7.2">Initiator signs the payload with its private key (JWS compact serialization).<a href="#section-6.3-7.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-7.3">Initiator POSTs the JWS to the responder's <code>register</code> endpoint with
+          <code>Content-Type: application/jose</code>.<a href="#section-6.3-7.3" class="pilcrow">¶</a>
+</li>
+        </ol>
+<p id="section-6.3-8"><strong>Phase 3  -- Responder Validates:</strong><a href="#section-6.3-8" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.3-9">
+          <li id="section-6.3-9.1">Responder validates the security token (if configured).<a href="#section-6.3-9.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-9.2">Responder fetches the initiator's AS5 configuration from the URL in the request.<a href="#section-6.3-9.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-9.3">Responder fetches the initiator's JWKS and verifies the JWS signature.<a href="#section-6.3-9.3" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-9.4">Responder stores the initiator's details and returns HTTP 200.<a href="#section-6.3-9.4" class="pilcrow">¶</a>
+</li>
+        </ol>
+<p id="section-6.3-10"><strong>Phase 4  -- Completion:</strong><a href="#section-6.3-10" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.3-11">
+          <li id="section-6.3-11.1">Initiator receives HTTP 200 confirmation.<a href="#section-6.3-11.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-11.2">Initiator stores the responder's details.<a href="#section-6.3-11.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.3-11.3">Both parties MAY immediately exchange FideX messages.<a href="#section-6.3-11.3" class="pilcrow">¶</a>
+</li>
+        </ol>
+</section>
+</div>
+<div id="registration-security">
+<section id="section-6.4">
+        <h3 id="name-registration-security-requi">
+<a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-registration-security-requi" class="section-name selfRef">Registration Security Requirements</a>
+        </h3>
+<p id="section-6.4-1">Registration requests MUST:<a href="#section-6.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-6.4-2.1">Be signed with the initiator's private key (RS256 minimum).<a href="#section-6.4-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.4-2.2">Be transmitted with <code>Content-Type: application/jose</code>.<a href="#section-6.4-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.4-2.3">Include a timestamp within +/-15 minutes of current time.<a href="#section-6.4-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.4-2.4">Include the security token if the responder has configured one.<a href="#section-6.4-2.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-6.4-3">
+          Security tokens MUST contain at least 128 bits of entropy, generated using a
+          cryptographically secure pseudo-random number generator (CSPRNG).
+          Examples: UUID v4, 32 hexadecimal characters, or 22 base64url characters.<a href="#section-6.4-3" class="pilcrow">¶</a></p>
+<p id="section-6.4-4">Responders MUST:<a href="#section-6.4-4" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-6.4-5.1">Validate the JWS signature before trusting any payload content.<a href="#section-6.4-5.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.4-5.2">Reject registrations with timestamps outside +/-15 minutes.<a href="#section-6.4-5.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-6.4-5.3">Reject invalid or previously used security tokens.<a href="#section-6.4-5.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="partner-deregistration">
+<section id="section-6.5">
+        <h3 id="name-partner-de-registration">
+<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-partner-de-registration" class="section-name selfRef">Partner De-Registration</a>
+        </h3>
+<p id="section-6.5-1">
+          De-registration is a local, unilateral operation. There is no protocol-level
+          de-registration handshake.<a href="#section-6.5-1" class="pilcrow">¶</a></p>
+<p id="section-6.5-2">Partner states:<a href="#section-6.5-2" class="pilcrow">¶</a></p>
+<span id="name-partner-states"></span><table class="center" id="table-2">
+          <caption>
+<a href="#table-2" class="selfRef">Table 2</a>:
+<a href="#name-partner-states" class="selfRef">Partner States</a>
+          </caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">State</th>
+              <th class="text-left" rowspan="1" colspan="1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">ACTIVE</td>
+              <td class="text-left" rowspan="1" colspan="1">Normal operation  -- messages accepted</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">SUSPENDED</td>
+              <td class="text-left" rowspan="1" colspan="1">Temporarily paused  -- messages rejected with HTTP 503</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">INACTIVE</td>
+              <td class="text-left" rowspan="1" colspan="1">De-registered  -- messages rejected with HTTP 401</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-6.5-4">De-registration procedure:<a href="#section-6.5-4" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.5-5">
+          <li id="section-6.5-5.1">The initiating party sets partner status to INACTIVE locally.<a href="#section-6.5-5.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.5-5.2">The initiating party SHOULD notify the partner via out-of-band channel.<a href="#section-6.5-5.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.5-5.3">The initiating party MUST continue accepting J-MDNs for in-flight messages.<a href="#section-6.5-5.3" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.5-5.4">After a 24-hour grace period, new inbound messages MUST be rejected with HTTP 401.<a href="#section-6.5-5.4" class="pilcrow">¶</a>
+</li>
+          <li id="section-6.5-5.5">Partner records SHOULD be retained for audit purposes (7 years RECOMMENDED).<a href="#section-6.5-5.5" class="pilcrow">¶</a>
+</li>
+        </ol>
+</section>
+</div>
+</section>
+</div>
+<div id="message-states">
+<section id="section-7">
+      <h2 id="name-message-states-and-receipts">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-message-states-and-receipts" class="section-name selfRef">Message States and Receipts</a>
+      </h2>
+<div id="states">
+<section id="section-7.1">
+        <h3 id="name-message-state-machine">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-message-state-machine" class="section-name selfRef">Message State Machine</a>
+        </h3>
+<p id="section-7.1-1">Messages transition through the following states:<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+<span id="name-message-states"></span><table class="center" id="table-3">
+          <caption>
+<a href="#table-3" class="selfRef">Table 3</a>:
+<a href="#name-message-states" class="selfRef">Message States</a>
+          </caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">State</th>
+              <th class="text-left" rowspan="1" colspan="1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">QUEUED</td>
+              <td class="text-left" rowspan="1" colspan="1">Created locally, awaiting transmission</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">SENT</td>
+              <td class="text-left" rowspan="1" colspan="1">Transmitted to receiver, awaiting J-MDN receipt</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">DELIVERED</td>
+              <td class="text-left" rowspan="1" colspan="1">J-MDN received and cryptographically verified</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">FAILED</td>
+              <td class="text-left" rowspan="1" colspan="1">Permanent failure or maximum retries exceeded</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+<div id="sync-response">
+<section id="section-7.2">
+        <h3 id="name-synchronous-http-response">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-synchronous-http-response" class="section-name selfRef">Synchronous HTTP Response</a>
+        </h3>
+<p id="section-7.2-1">
+          Upon receiving a message, nodes MUST perform structural validation and return:<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.2-2.1">
+            <strong>HTTP 202 Accepted:</strong> Message is structurally valid and queued for processing.<a href="#section-7.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-7.2-2.2">
+            <strong>HTTP 4xx/5xx:</strong> Immediate rejection (see <a href="#error-handling" class="auto internal xref">Section 8</a>).<a href="#section-7.2-2.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-7.2-3">
+          HTTP 202 indicates structural acceptance only. It does NOT indicate successful
+          decryption, business document processing, or J-MDN generation.<a href="#section-7.2-3" class="pilcrow">¶</a></p>
+<p id="section-7.2-4">
+          <strong>Idempotency:</strong> Receivers MUST handle duplicate <code>message_id</code>
+          values idempotently. If a receiver encounters a <code>message_id</code> it has already
+          accepted, it MUST return HTTP 202 again and MUST NOT process the message a second
+          time. This ensures safe sender retries when HTTP responses are lost.<a href="#section-7.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="jmdn">
+<section id="section-7.3">
+        <h3 id="name-asynchronous-receipt-j-mdn">
+<a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-asynchronous-receipt-j-mdn" class="section-name selfRef">Asynchronous Receipt: J-MDN</a>
+        </h3>
+<p id="section-7.3-1">
+          The J-MDN (JSON Message Disposition Notification) is the legally most significant
+          artifact in the FideX protocol. It provides cryptographic proof that a specific
+          message was received, decrypted, and accepted or rejected by the trading partner.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+<p id="section-7.3-2">
+          After processing a message, the receiver MUST send a J-MDN to the sender.
+          The delivery target is determined as follows:<a href="#section-7.3-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.3-3">
+          <li id="section-7.3-3.1">If <code>receipt_webhook</code> is present in the routing header, deliver to that URL.<a href="#section-7.3-3.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-7.3-3.2">Otherwise, deliver to the sender's <code>receive_receipt</code> endpoint from the sender's AS5 configuration.<a href="#section-7.3-3.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-7.3-3.3">If neither is available, the J-MDN MUST be stored and the failure logged; J-MDNs MUST NOT be discarded.<a href="#section-7.3-3.3" class="pilcrow">¶</a>
+</li>
+        </ol>
+<div id="jmdn-schema">
+<section id="section-7.3.1">
+          <h4 id="name-j-mdn-payload-schema">
+<a href="#section-7.3.1" class="section-number selfRef">7.3.1. </a><a href="#name-j-mdn-payload-schema" class="section-name selfRef">J-MDN Payload Schema</a>
+          </h4>
+<p id="section-7.3.1-1">The J-MDN JSON object contains the following fields:<a href="#section-7.3.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-7.3.1-2">
+            <dt id="section-7.3.1-2.1">original_message_id</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.2">(string, REQUIRED) The <code>message_id</code> from the original message's routing_header.<a href="#section-7.3.1-2.2" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.1-2.3">status</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.4">(string, REQUIRED) Either "DELIVERED" or "FAILED".<a href="#section-7.3.1-2.4" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.1-2.5">receiver_id</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.6">(string, REQUIRED) URN of the receiver generating this J-MDN. MUST match the <code>receiver_id</code> in the original routing_header.<a href="#section-7.3.1-2.6" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.1-2.7">hash_verification</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.8">(string, REQUIRED) SHA-256 hash of the raw business payload bytes before JWS signing. Format: "sha256:{64 hex characters}". See <a href="#hash-verification" class="auto internal xref">Section 7.3.2</a>.<a href="#section-7.3.1-2.8" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.1-2.9">timestamp</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.10">(string, REQUIRED) ISO 8601 UTC timestamp when the J-MDN was created. Format: YYYY-MM-DDTHH:mm:ss.SSSZ.<a href="#section-7.3.1-2.10" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.1-2.11">error_log</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.12">(object|null, REQUIRED) MUST be null when status is "DELIVERED". MUST be an error object when status is "FAILED".<a href="#section-7.3.1-2.12" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.1-2.13">signature</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.1-2.14">(string, REQUIRED) JWS compact serialization covering all other J-MDN fields. See <a href="#jmdn-signature" class="auto internal xref">Section 7.3.3</a>.<a href="#section-7.3.1-2.14" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+</dl>
+<p id="section-7.3.1-3">Positive J-MDN example (DELIVERED):<a href="#section-7.3.1-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.3.1-4">
+<pre>
+{
+  "original_message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "DELIVERED",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:9f86d08...b0f00a08",
+  "timestamp": "2026-03-09T19:30:02.000Z",
+  "error_log": null,
+  "signature": "eyJhbGciOiJSUzI1NiIs..."
+}
+</pre><a href="#section-7.3.1-4" class="pilcrow">¶</a>
+</div>
+<p id="section-7.3.1-5">Negative J-MDN example (FAILED):<a href="#section-7.3.1-5" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.3.1-6">
+<pre>
+{
+  "original_message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "FAILED",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:0000...0000",
+  "timestamp": "2026-03-09T19:30:02.000Z",
+  "error_log": {
+    "error_code": "DECRYPTION_FAILED",
+    "error_message": "Unable to decrypt payload",
+    "details": "Key ID mismatch"
+  },
+  "signature": "eyJhbGciOiJSUzI1NiIs..."
+}
+</pre><a href="#section-7.3.1-6" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="hash-verification">
+<section id="section-7.3.2">
+          <h4 id="name-hash-verification">
+<a href="#section-7.3.2" class="section-number selfRef">7.3.2. </a><a href="#name-hash-verification" class="section-name selfRef">Hash Verification</a>
+          </h4>
+<p id="section-7.3.2-1">
+            The <code>hash_verification</code> field proves that the receiver decrypted exactly
+            the payload the sender signed.<a href="#section-7.3.2-1" class="pilcrow">¶</a></p>
+<p id="section-7.3.2-2">Definition:<a href="#section-7.3.2-2" class="pilcrow">¶</a></p>
+<div class="lang-text sourcecode" id="section-7.3.2-3">
+<pre>
+hash_verification =
+    "sha256:" || hex( SHA-256( raw_business_payload_bytes ) )
+</pre><a href="#section-7.3.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-7.3.2-4">
+            Where <code>raw_business_payload_bytes</code> is the UTF-8 encoded bytes of the
+            business JSON payload BEFORE JWS signing (i.e., the exact cleartext that was
+            the input to the JWS sign operation).<a href="#section-7.3.2-4" class="pilcrow">¶</a></p>
+<p id="section-7.3.2-5">
+            When <code>status</code> is "FAILED" and the receiver could NOT decrypt the
+            payload, <code>hash_verification</code> MUST be set to a string of 64 zero
+            hex digits: "sha256:" followed by 64 ASCII "0" characters.<a href="#section-7.3.2-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="jmdn-signature">
+<section id="section-7.3.3">
+          <h4 id="name-j-mdn-signature-requirement">
+<a href="#section-7.3.3" class="section-number selfRef">7.3.3. </a><a href="#name-j-mdn-signature-requirement" class="section-name selfRef">J-MDN Signature Requirements</a>
+          </h4>
+<p id="section-7.3.3-1">
+            The <code>signature</code> field MUST contain a JWS compact serialization covering
+            all other J-MDN fields (i.e., all fields except <code>signature</code> itself).<a href="#section-7.3.3-1" class="pilcrow">¶</a></p>
+<p id="section-7.3.3-2">JWS Protected Header for J-MDN signing:<a href="#section-7.3.3-2" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.3.3-3">
+<pre>
+{
+  "alg": "RS256",
+  "kid": "{receiver-signing-key-id}"
+}
+</pre><a href="#section-7.3.3-3" class="pilcrow">¶</a>
+</div>
+<p id="section-7.3.3-4">Signing procedure:<a href="#section-7.3.3-4" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.3.3-5">
+            <li id="section-7.3.3-5.1">Construct a JSON object with all J-MDN fields EXCEPT <code>signature</code>.<a href="#section-7.3.3-5.1" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-5.2">Serialize to canonical JSON: no extra whitespace; keys in alphabetical order
+            (error_log, hash_verification, original_message_id, receiver_id, status, timestamp).<a href="#section-7.3.3-5.2" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-5.3">Sign using RS256 with the receiver's private signing key.<a href="#section-7.3.3-5.3" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-5.4">Set <code>signature</code> to the resulting JWS compact serialization.<a href="#section-7.3.3-5.4" class="pilcrow">¶</a>
+</li>
+          </ol>
+<p id="section-7.3.3-6">Verification procedure (sender side):<a href="#section-7.3.3-6" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.3.3-7">
+            <li id="section-7.3.3-7.1">Extract <code>signature</code> from the received J-MDN.<a href="#section-7.3.3-7.1" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-7.2">Parse JWS; extract <code>kid</code> from the JWS header.<a href="#section-7.3.3-7.2" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-7.3">Look up the receiver's public key from their JWKS using <code>kid</code>.<a href="#section-7.3.3-7.3" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-7.4">Verify the JWS signature.<a href="#section-7.3.3-7.4" class="pilcrow">¶</a>
+</li>
+            <li id="section-7.3.3-7.5">Compare the JWS payload with the remaining J-MDN fields for consistency.<a href="#section-7.3.3-7.5" class="pilcrow">¶</a>
+</li>
+          </ol>
+</section>
+</div>
+<div id="jmdn-error-codes">
+<section id="section-7.3.4">
+          <h4 id="name-j-mdn-error-codes">
+<a href="#section-7.3.4" class="section-number selfRef">7.3.4. </a><a href="#name-j-mdn-error-codes" class="section-name selfRef">J-MDN Error Codes</a>
+          </h4>
+<p id="section-7.3.4-1">
+            When <code>status</code> is "FAILED", the <code>error_log</code> object MUST contain:<a href="#section-7.3.4-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-7.3.4-2">
+            <dt id="section-7.3.4-2.1">error_code</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.4-2.2">(string, REQUIRED) Machine-readable code from the table below.<a href="#section-7.3.4-2.2" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.4-2.3">error_message</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.4-2.4">(string, REQUIRED) Human-readable description.<a href="#section-7.3.4-2.4" class="pilcrow">¶</a>
+</dd>
+            <dd class="break"></dd>
+<dt id="section-7.3.4-2.5">details</dt>
+            <dd style="margin-left: 1.5em" id="section-7.3.4-2.6">(string, OPTIONAL) Additional diagnostic info. MUST NOT contain sensitive data.<a href="#section-7.3.4-2.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+</dl>
+<span id="name-standard-j-mdn-error-codes"></span><table class="center" id="table-4">
+            <caption>
+<a href="#table-4" class="selfRef">Table 4</a>:
+<a href="#name-standard-j-mdn-error-codes" class="selfRef">Standard J-MDN Error Codes</a>
+            </caption>
+<thead>
+              <tr>
+                <th class="text-left" rowspan="1" colspan="1">Code</th>
+                <th class="text-left" rowspan="1" colspan="1">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">DECRYPTION_FAILED</td>
+                <td class="text-left" rowspan="1" colspan="1">Cannot decrypt JWE (wrong key or corrupted ciphertext)</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">SIGNATURE_INVALID</td>
+                <td class="text-left" rowspan="1" colspan="1">JWS signature verification failed</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">UNKNOWN_DOCUMENT_TYPE</td>
+                <td class="text-left" rowspan="1" colspan="1">The document_type is not supported by the receiver</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">PAYLOAD_TOO_LARGE</td>
+                <td class="text-left" rowspan="1" colspan="1">Message exceeds receiver's processing limits</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">INTERNAL_ERROR</td>
+                <td class="text-left" rowspan="1" colspan="1">Receiver encountered an internal processing error</td>
+              </tr>
+            </tbody>
+          </table>
+</section>
+</div>
+<div id="jmdn-delivery">
+<section id="section-7.3.5">
+          <h4 id="name-j-mdn-delivery-protocol">
+<a href="#section-7.3.5" class="section-number selfRef">7.3.5. </a><a href="#name-j-mdn-delivery-protocol" class="section-name selfRef">J-MDN Delivery Protocol</a>
+          </h4>
+<p id="section-7.3.5-1">The J-MDN is delivered via HTTP POST:<a href="#section-7.3.5-1" class="pilcrow">¶</a></p>
+<div class="lang-http sourcecode" id="section-7.3.5-2">
+<pre>
+POST {receipt_webhook} HTTP/1.1
+Host: {sender_host}
+Content-Type: application/json
+X-FideX-Original-Message-ID: {original_message_id}
+
+{J-MDN JSON body}
+</pre><a href="#section-7.3.5-2" class="pilcrow">¶</a>
+</div>
+<p id="section-7.3.5-3">Expected response:<a href="#section-7.3.5-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.3.5-4">
+<pre>
+{
+  "receipt_acknowledged": true
+}
+</pre><a href="#section-7.3.5-4" class="pilcrow">¶</a>
+</div>
+<p id="section-7.3.5-5">Timing requirements:<a href="#section-7.3.5-5" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.3.5-6.1">Receivers SHOULD send J-MDN within 5 minutes of receiving the original message.<a href="#section-7.3.5-6.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-7.3.5-6.2">If processing takes longer, the J-MDN MUST still be sent when processing completes.<a href="#section-7.3.5-6.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-7.3.5-6.3">There is no strict upper time limit; delivery is asynchronous by design.<a href="#section-7.3.5-6.3" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+<div id="jmdn-retry">
+<section id="section-7.3.6">
+          <h4 id="name-j-mdn-delivery-retry-schedu">
+<a href="#section-7.3.6" class="section-number selfRef">7.3.6. </a><a href="#name-j-mdn-delivery-retry-schedu" class="section-name selfRef">J-MDN Delivery Retry Schedule</a>
+          </h4>
+<p id="section-7.3.6-1">
+            If the J-MDN delivery endpoint is unreachable, the receiver SHOULD retry
+            according to the following schedule:<a href="#section-7.3.6-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.3.6-2.1">Attempt 1: Immediate<a href="#section-7.3.6-2.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-7.3.6-2.2">Attempt 2: +1 minute<a href="#section-7.3.6-2.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-7.3.6-2.3">Attempt 3: +5 minutes<a href="#section-7.3.6-2.3" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-7.3.6-2.4">Attempt 4: +15 minutes<a href="#section-7.3.6-2.4" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-7.3.6-2.5">Attempt 5: +1 hour<a href="#section-7.3.6-2.5" class="pilcrow">¶</a>
+</li>
+          </ul>
+<p id="section-7.3.6-3">
+            After 5 failed attempts, the receiver SHOULD log the failure and store the
+            J-MDN for manual retrieval. The J-MDN MUST NOT be discarded.<a href="#section-7.3.6-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="sender-retry">
+<section id="section-7.4">
+        <h3 id="name-sender-retry-semantics">
+<a href="#section-7.4" class="section-number selfRef">7.4. </a><a href="#name-sender-retry-semantics" class="section-name selfRef">Sender Retry Semantics</a>
+        </h3>
+<p id="section-7.4-1">
+          Senders SHOULD retry failed transmissions with exponential backoff:<a href="#section-7.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-7.4-2.1">Attempt 1: Immediate<a href="#section-7.4-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-7.4-2.2">Attempt 2: +1 minute<a href="#section-7.4-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-7.4-2.3">Attempt 3: +5 minutes<a href="#section-7.4-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-7.4-2.4">Attempt 4: +15 minutes<a href="#section-7.4-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-7.4-2.5">Attempt 5: +30 minutes<a href="#section-7.4-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-7.4-2.6">Attempt 6: +1 hour<a href="#section-7.4-2.6" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-7.4-3">
+          After 5-6 failed attempts, the message SHOULD transition to FAILED state
+          requiring manual operator intervention.<a href="#section-7.4-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="error-handling">
+<section id="section-8">
+      <h2 id="name-error-handling">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-error-handling" class="section-name selfRef">Error Handling</a>
+      </h2>
+<div id="http-status-codes">
+<section id="section-8.1">
+        <h3 id="name-http-status-codes">
+<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-http-status-codes" class="section-name selfRef">HTTP Status Codes</a>
+        </h3>
+<span id="name-http-status-code-semantics"></span><table class="center" id="table-5">
+          <caption>
+<a href="#table-5" class="selfRef">Table 5</a>:
+<a href="#name-http-status-code-semantics" class="selfRef">HTTP Status Code Semantics</a>
+          </caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Code</th>
+              <th class="text-left" rowspan="1" colspan="1">Meaning</th>
+              <th class="text-left" rowspan="1" colspan="1">Sender Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">202</td>
+              <td class="text-left" rowspan="1" colspan="1">Accepted for processing</td>
+              <td class="text-left" rowspan="1" colspan="1">Wait for J-MDN</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">400</td>
+              <td class="text-left" rowspan="1" colspan="1">Invalid message structure</td>
+              <td class="text-left" rowspan="1" colspan="1">Do not retry (permanent error)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">401</td>
+              <td class="text-left" rowspan="1" colspan="1">Authentication failed or partner INACTIVE</td>
+              <td class="text-left" rowspan="1" colspan="1">Do not retry (permanent error)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">413</td>
+              <td class="text-left" rowspan="1" colspan="1">Payload too large</td>
+              <td class="text-left" rowspan="1" colspan="1">Do not retry (permanent error)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">429</td>
+              <td class="text-left" rowspan="1" colspan="1">Rate limit exceeded</td>
+              <td class="text-left" rowspan="1" colspan="1">Retry with backoff; honor Retry-After header</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">500</td>
+              <td class="text-left" rowspan="1" colspan="1">Server internal error</td>
+              <td class="text-left" rowspan="1" colspan="1">Retry with backoff</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">503</td>
+              <td class="text-left" rowspan="1" colspan="1">Service unavailable or partner SUSPENDED</td>
+              <td class="text-left" rowspan="1" colspan="1">Retry with backoff</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-8.1-2">
+          Implementations SHOULD include a <code>Retry-After</code> header on HTTP 429 responses,
+          per <span>[<a href="#RFC9110" class="cite xref">RFC9110</a>]</span> Section 10.2.3.<a href="#section-8.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="error-format">
+<section id="section-8.2">
+        <h3 id="name-error-response-format">
+<a href="#section-8.2" class="section-number selfRef">8.2. </a><a href="#name-error-response-format" class="section-name selfRef">Error Response Format</a>
+        </h3>
+<p id="section-8.2-1">All error responses MUST use the following JSON structure:<a href="#section-8.2-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-8.2-2">
+<pre>
+{
+  "error": {
+    "code": "INVALID_ROUTING_HEADER",
+    "message": "Missing required field: message_id",
+    "timestamp": "2026-03-09T19:00:00.000Z"
+  }
+}
+</pre><a href="#section-8.2-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="error-codes">
+<section id="section-8.3">
+        <h3 id="name-standard-error-codes">
+<a href="#section-8.3" class="section-number selfRef">8.3. </a><a href="#name-standard-error-codes" class="section-name selfRef">Standard Error Codes</a>
+        </h3>
+<p id="section-8.3-1">Message transmission errors:<a href="#section-8.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-8.3-2.1">
+            <code>INVALID_ROUTING_HEADER</code>  -- Missing or malformed routing header<a href="#section-8.3-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-2.2">
+            <code>UNKNOWN_RECEIVER</code>  -- receiver_id not recognized in partner registry<a href="#section-8.3-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-2.3">
+            <code>UNKNOWN_DOCUMENT_TYPE</code>  -- document_type not supported<a href="#section-8.3-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-2.4">
+            <code>PAYLOAD_TOO_LARGE</code>  -- Message exceeds the 10 MB size limit<a href="#section-8.3-2.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-8.3-3">Cryptographic errors:<a href="#section-8.3-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-8.3-4.1">
+            <code>DECRYPTION_FAILED</code>  -- Cannot decrypt JWE<a href="#section-8.3-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-4.2">
+            <code>SIGNATURE_INVALID</code>  -- JWS signature verification failed<a href="#section-8.3-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-4.3">
+            <code>UNKNOWN_KEY_ID</code>  -- Key ID not found in JWKS<a href="#section-8.3-4.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-8.3-5">Discovery errors:<a href="#section-8.3-5" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-8.3-6.1">
+            <code>INVALID_TOKEN</code>  -- Security token invalid or expired<a href="#section-8.3-6.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-6.2">
+            <code>DUPLICATE_REGISTRATION</code>  -- Partner already registered<a href="#section-8.3-6.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-8.3-6.3">
+            <code>CONFIG_UNREACHABLE</code>  -- Cannot fetch AS5 configuration<a href="#section-8.3-6.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="security">
+<section id="section-9">
+      <h2 id="name-security-considerations">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<div id="threat-model">
+<section id="section-9.1">
+        <h3 id="name-threat-model">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-threat-model" class="section-name selfRef">Threat Model</a>
+        </h3>
+<p id="section-9.1-1">FideX addresses the following threats:<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-9.1-2">
+          <dt id="section-9.1-2.1">Man-in-the-Middle (MitM)</dt>
+          <dd style="margin-left: 1.5em" id="section-9.1-2.2">Mitigated by TLS 1.3 transport encryption combined with JWE application-layer encryption. An attacker who intercepts the TLS session cannot read the encrypted payload.<a href="#section-9.1-2.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-9.1-2.3">Message Tampering</dt>
+          <dd style="margin-left: 1.5em" id="section-9.1-2.4">Mitigated by JWS digital signatures. Any modification to the signed payload invalidates the signature, detected during verification.<a href="#section-9.1-2.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-9.1-2.5">Replay Attacks</dt>
+          <dd style="margin-left: 1.5em" id="section-9.1-2.6">Mitigated by unique message IDs combined with timestamp validation. Receivers MUST maintain a replay cache and reject duplicate message_id values.<a href="#section-9.1-2.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-9.1-2.7">Repudiation</dt>
+          <dd style="margin-left: 1.5em" id="section-9.1-2.8">Mitigated by cryptographic signatures on both messages (JWS) and receipts (J-MDN signature), creating a legally auditable chain of custody.<a href="#section-9.1-2.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-9.1-2.9">Key Compromise</dt>
+          <dd style="margin-left: 1.5em" id="section-9.1-2.10">Mitigated by key rotation procedures and JWKS-based distribution. Compromised keys can be revoked by removing them from the JWKS.<a href="#section-9.1-2.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-9.1-2.11">Cross-Partner Key Substitution</dt>
+          <dd style="margin-left: 1.5em" id="section-9.1-2.12">Mitigated by sender identity verification (Section 4.4): the receiver verifies the signing key belongs to the claimed sender_id.<a href="#section-9.1-2.12" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="impl-requirements">
+<section id="section-9.2">
+        <h3 id="name-implementation-security-req">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-implementation-security-req" class="section-name selfRef">Implementation Security Requirements</a>
+        </h3>
+<p id="section-9.2-1">Implementations MUST:<a href="#section-9.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.2-2.1">Validate TLS certificates against a trusted CA store on all outbound connections.<a href="#section-9.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.2">Use constant-time comparison for signature verification to prevent timing attacks.<a href="#section-9.2-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.3">Maintain a cache of recently seen message IDs to detect replay attacks.<a href="#section-9.2-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.4">Reject messages with timestamps outside a +/-15-minute window of current time.<a href="#section-9.2-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.5">Maintain the message ID replay cache for at least 24 hours.<a href="#section-9.2-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.6">Synchronize system clocks using NTP (<span>[<a href="#RFC5905" class="cite xref">RFC5905</a>]</span>) or equivalent.<a href="#section-9.2-2.6" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.7">Generate cryptographically secure random message IDs using a CSPRNG.<a href="#section-9.2-2.7" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-2.8">Never expose private keys in logs, error messages, or API responses.<a href="#section-9.2-2.8" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-9.2-3">Implementations SHOULD:<a href="#section-9.2-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.2-4.1">Implement per-partner rate limiting on all endpoints.<a href="#section-9.2-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-4.2">Use separate key pairs for signing and encryption (different <code>use</code> values).<a href="#section-9.2-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-4.3">Rotate keys annually following the procedure in <a href="#key-rotation" class="auto internal xref">Section 5.3</a>.<a href="#section-9.2-4.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.2-4.4">Monitor for anomalous patterns (repeated authentication failures, invalid signatures).<a href="#section-9.2-4.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="key-management">
+<section id="section-9.3">
+        <h3 id="name-key-management">
+<a href="#section-9.3" class="section-number selfRef">9.3. </a><a href="#name-key-management" class="section-name selfRef">Key Management</a>
+        </h3>
+<p id="section-9.3-1">Private keys:<a href="#section-9.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.3-2.1">MUST be generated using a cryptographically secure random number generator.<a href="#section-9.3-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.3-2.2">MUST be stored encrypted at rest.<a href="#section-9.3-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.3-2.3">MUST NOT be transmitted over any network.<a href="#section-9.3-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.3-2.4">SHOULD be stored in a Hardware Security Module (HSM) for high-security deployments.<a href="#section-9.3-2.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-9.3-3">Public keys:<a href="#section-9.3-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.3-4.1">MUST be distributed exclusively via the JWKS endpoint.<a href="#section-9.3-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.3-4.2">SHOULD include a <code>kid</code> value encoding purpose and date (e.g., "org-sign-rsa-2026-01").<a href="#section-9.3-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.3-4.3">MAY be cached by consuming parties for up to 24 hours.<a href="#section-9.3-4.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="compliance">
+<section id="section-9.4">
+        <h3 id="name-compliance-considerations">
+<a href="#section-9.4" class="section-number selfRef">9.4. </a><a href="#name-compliance-considerations" class="section-name selfRef">Compliance Considerations</a>
+        </h3>
+<p id="section-9.4-1">FideX is designed to support compliance with:<a href="#section-9.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.4-2.1">Non-repudiation requirements for legally binding electronic transactions.<a href="#section-9.4-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.4-2.2">FDA 21 CFR Part 11 (electronic signatures in regulated industries).<a href="#section-9.4-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.4-2.3">GDPR and similar data protection frameworks (via encrypted payloads).<a href="#section-9.4-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.4-2.4">GS1 and UN/CEFACT EDI standards (via payload-agnostic design).<a href="#section-9.4-2.4" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-9.4-3">Recommended audit trail retention periods:<a href="#section-9.4-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.4-4.1">Message metadata: 7 years<a href="#section-9.4-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.4-4.2">Cryptographic signatures (JWS): 7 years<a href="#section-9.4-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="section-9.4-4.3">J-MDN receipts: 7 years<a href="#section-9.4-4.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="deployment-note">
+<section id="section-9.5">
+        <h3 id="name-deployment-note">
+<a href="#section-9.5" class="section-number selfRef">9.5. </a><a href="#name-deployment-note" class="section-name selfRef">Deployment Note</a>
+        </h3>
+<p id="section-9.5-1">
+          FideX is designed to operate on standard web infrastructure. A conforming node
+          can be implemented as a standard HTTPS web application behind any reverse proxy
+          (Nginx, Apache, Caddy, cloud load balancers). No specialized B2B middleware,
+          message broker, or gateway software is required. This is a key differentiator
+          from AS2 (which required dedicated gateway software) and AS4 (which required
+          SOAP stacks and ebMS processing engines).<a href="#section-9.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-10">
+      <h2 id="name-iana-considerations">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-10-1">
+        This document has no IANA actions.<a href="#section-10-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<section id="section-11">
+      <h2 id="name-references">
+<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<div id="normative-references">
+<section id="section-11.1">
+        <h3 id="name-normative-references">
+<a href="#section-11.1" class="section-number selfRef">11.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8174">[RFC8174]</dt>
+        <dd>
+<span class="refAuthor">Leiba, B.</span>, <span class="refTitle">"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 8174</span>, <span class="seriesInfo">DOI 10.17487/RFC8174</span>, <time datetime="2017-05" class="refDate">May 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8174">https://www.rfc-editor.org/info/rfc8174</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8446">[RFC8446]</dt>
+        <dd>
+<span class="refAuthor">Rescorla, E.</span>, <span class="refTitle">"The Transport Layer Security (TLS) Protocol Version 1.3"</span>, <span class="seriesInfo">RFC 8446</span>, <span class="seriesInfo">DOI 10.17487/RFC8446</span>, <time datetime="2018-08" class="refDate">August 2018</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8446">https://www.rfc-editor.org/info/rfc8446</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6066">[RFC6066]</dt>
+        <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refTitle">"Transport Layer Security (TLS) Extensions: Extension Definitions"</span>, <span class="seriesInfo">RFC 6066</span>, <span class="seriesInfo">DOI 10.17487/RFC6066</span>, <time datetime="2011-01" class="refDate">January 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6066">https://www.rfc-editor.org/info/rfc6066</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7515">[RFC7515]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Signature (JWS)"</span>, <span class="seriesInfo">RFC 7515</span>, <span class="seriesInfo">DOI 10.17487/RFC7515</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7515">https://www.rfc-editor.org/info/rfc7515</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7516">[RFC7516]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span> and <span class="refAuthor">J. Hildebrand</span>, <span class="refTitle">"JSON Web Encryption (JWE)"</span>, <span class="seriesInfo">RFC 7516</span>, <span class="seriesInfo">DOI 10.17487/RFC7516</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7516">https://www.rfc-editor.org/info/rfc7516</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7517">[RFC7517]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refTitle">"JSON Web Key (JWK)"</span>, <span class="seriesInfo">RFC 7517</span>, <span class="seriesInfo">DOI 10.17487/RFC7517</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7517">https://www.rfc-editor.org/info/rfc7517</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7518">[RFC7518]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refTitle">"JSON Web Algorithms (JWA)"</span>, <span class="seriesInfo">RFC 7518</span>, <span class="seriesInfo">DOI 10.17487/RFC7518</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7518">https://www.rfc-editor.org/info/rfc7518</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9562">[RFC9562]</dt>
+        <dd>
+<span class="refAuthor">Davis, K.</span>, <span class="refAuthor">Peabody, B.</span>, and <span class="refAuthor">P. Leach</span>, <span class="refTitle">"Universally Unique IDentifiers (UUIDs)"</span>, <span class="seriesInfo">RFC 9562</span>, <span class="seriesInfo">DOI 10.17487/RFC9562</span>, <time datetime="2024-05" class="refDate">May 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9562">https://www.rfc-editor.org/info/rfc9562</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC5905">[RFC5905]</dt>
+        <dd>
+<span class="refAuthor">Mills, D.</span>, <span class="refAuthor">Martin, J.</span>, <span class="refAuthor">Burbank, J.</span>, and <span class="refAuthor">W. Kasch</span>, <span class="refTitle">"Network Time Protocol Version 4: Protocol and Algorithms Specification"</span>, <span class="seriesInfo">RFC 5905</span>, <span class="seriesInfo">DOI 10.17487/RFC5905</span>, <time datetime="2010-06" class="refDate">June 2010</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc5905">https://www.rfc-editor.org/info/rfc5905</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9110">[RFC9110]</dt>
+      <dd>
+<span class="refAuthor">Fielding, R., Ed.</span>, <span class="refAuthor">Nottingham, M., Ed.</span>, and <span class="refAuthor">J. Reschke, Ed.</span>, <span class="refTitle">"HTTP Semantics"</span>, <span class="seriesInfo">STD 97</span>, <span class="seriesInfo">RFC 9110</span>, <span class="seriesInfo">DOI 10.17487/RFC9110</span>, <time datetime="2022-06" class="refDate">June 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9110">https://www.rfc-editor.org/info/rfc9110</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="informative-references">
+<section id="section-11.2">
+        <h3 id="name-informative-references">
+<a href="#section-11.2" class="section-number selfRef">11.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC5246">[RFC5246]</dt>
+        <dd>
+<span class="refAuthor">Dierks, T.</span> and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"The Transport Layer Security (TLS) Protocol Version 1.2"</span>, <span class="seriesInfo">RFC 5246</span>, <span class="seriesInfo">DOI 10.17487/RFC5246</span>, <time datetime="2008-08" class="refDate">August 2008</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc5246">https://www.rfc-editor.org/info/rfc5246</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC4130">[RFC4130]</dt>
+        <dd>
+<span class="refAuthor">Moberg, D.</span> and <span class="refAuthor">R. Drummond</span>, <span class="refTitle">"MIME-Based Secure Peer-to-Peer Business Data Interchange Using HTTP, Applicability Statement 2 (AS2)"</span>, <span class="seriesInfo">RFC 4130</span>, <span class="seriesInfo">DOI 10.17487/RFC4130</span>, <time datetime="2005-07" class="refDate">July 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4130">https://www.rfc-editor.org/info/rfc4130</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9113">[RFC9113]</dt>
+        <dd>
+<span class="refAuthor">Thomson, M., Ed.</span> and <span class="refAuthor">C. Benfield, Ed.</span>, <span class="refTitle">"HTTP/2"</span>, <span class="seriesInfo">RFC 9113</span>, <span class="seriesInfo">DOI 10.17487/RFC9113</span>, <time datetime="2022-06" class="refDate">June 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9113">https://www.rfc-editor.org/info/rfc9113</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9114">[RFC9114]</dt>
+        <dd>
+<span class="refAuthor">Bishop, M., Ed.</span>, <span class="refTitle">"HTTP/3"</span>, <span class="seriesInfo">RFC 9114</span>, <span class="seriesInfo">DOI 10.17487/RFC9114</span>, <time datetime="2022-06" class="refDate">June 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9114">https://www.rfc-editor.org/info/rfc9114</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OASIS-ebMS">[OASIS-ebMS]</dt>
+        <dd>
+<span class="refAuthor">OASIS</span>, <span class="refTitle">"OASIS ebXML Messaging Services Version 3.0: Part 1, Core Features"</span>, <time datetime="2007-10" class="refDate">October 2007</time>, <span>&lt;<a href="https://docs.oasis-open.org/ebxml-msg/ebms/v3.0/core/os/">https://docs.oasis-open.org/ebxml-msg/ebms/v3.0/core/os/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="GS1-JSON">[GS1-JSON]</dt>
+      <dd>
+<span class="refAuthor">GS1</span>, <span class="refTitle">"GS1 Web Vocabulary"</span>, <time datetime="2023" class="refDate">2023</time>, <span>&lt;<a href="https://www.gs1.org/voc/">https://www.gs1.org/voc/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+<div id="appendix-example">
+<section id="appendix-A">
+      <h2 id="name-appendix-a-complete-message">
+<a href="#name-appendix-a-complete-message" class="section-name selfRef">Appendix A: Complete Message Example</a>
+      </h2>
+<p id="appendix-A-1">The following illustrates a complete FideX message exchange.<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+<p id="appendix-A-2">HTTP request (sender to receiver):<a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<div class="lang-http sourcecode" id="appendix-A-3">
+<pre>
+POST /api/v1/receive HTTP/1.1
+Host: partner.example.com
+Content-Type: application/json
+
+{
+  "routing_header": {
+    "fidex_version": "1.0",
+    "message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "sender_id": "urn:gln:1234567890123",
+    "receiver_id": "urn:gln:9876543210987",
+    "document_type": "GS1_ORDER_JSON",
+    "timestamp": "2026-03-09T19:30:00.000Z",
+    "receipt_webhook": "https://sender.example.com/api/v1/receipt"
+  },
+  "encrypted_payload": "eyJhbGciOiJSU0EtT0FFUCIs..."
+}
+</pre><a href="#appendix-A-3" class="pilcrow">¶</a>
+</div>
+<p id="appendix-A-4">HTTP 202 response (receiver accepts):<a href="#appendix-A-4" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="appendix-A-5">
+<pre>
+{
+  "status": "accepted",
+  "message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "timestamp": "2026-03-09T19:30:00.500Z"
+}
+</pre><a href="#appendix-A-5" class="pilcrow">¶</a>
+</div>
+<p id="appendix-A-6">J-MDN receipt (receiver delivers to sender's webhook):<a href="#appendix-A-6" class="pilcrow">¶</a></p>
+<div class="lang-http sourcecode" id="appendix-A-7">
+<pre>
+POST /api/v1/receipt HTTP/1.1
+Host: sender.example.com
+Content-Type: application/json
+X-FideX-Original-Message-ID: fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+{
+  "original_message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "DELIVERED",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:9f86d08...b0f00a08",
+  "timestamp": "2026-03-09T19:30:02.000Z",
+  "error_log": null,
+  "signature": "eyJhbGciOiJSUzI1NiIs..."
+}
+</pre><a href="#appendix-A-7" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="appendix-glossary">
+<section id="appendix-B">
+      <h2 id="name-appendix-b-glossary">
+<a href="#name-appendix-b-glossary" class="section-name selfRef">Appendix B: Glossary</a>
+      </h2>
+<span class="break"></span><dl class="dlParallel" id="appendix-B-1">
+        <dt id="appendix-B-1.1">AS5</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.2">Application Statement 5  -- the formal designation of the FideX protocol.<a href="#appendix-B-1.2" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.3">B2B</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.4">Business-to-Business electronic commerce.<a href="#appendix-B-1.4" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.5">CSPRNG</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.6">Cryptographically Secure Pseudo-Random Number Generator.<a href="#appendix-B-1.6" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.7">EDI</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.8">Electronic Data Interchange.<a href="#appendix-B-1.8" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.9">GLN</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.10">Global Location Number  -- GS1 standard organization identifier.<a href="#appendix-B-1.10" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.11">HSM</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.12">Hardware Security Module  -- tamper-resistant hardware for key storage.<a href="#appendix-B-1.12" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.13">J-MDN</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.14">JSON Message Disposition Notification  -- the FideX signed delivery receipt.<a href="#appendix-B-1.14" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.15">JOSE</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.16">JSON Object Signing and Encryption  -- the IETF framework comprising JWS, JWE, JWK, and JWA.<a href="#appendix-B-1.16" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.17">JWE</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.18">JSON Web Encryption (RFC 7516).<a href="#appendix-B-1.18" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.19">JWK</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.20">JSON Web Key (RFC 7517).<a href="#appendix-B-1.20" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.21">JWKS</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.22">JSON Web Key Set  -- a JSON document containing a set of public keys.<a href="#appendix-B-1.22" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.23">JWS</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.24">JSON Web Signature (RFC 7515).<a href="#appendix-B-1.24" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.25">Node</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.26">A FideX-compliant server capable of sending and receiving messages.<a href="#appendix-B-1.26" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+<dt id="appendix-B-1.27">URN</dt>
+        <dd style="margin-left: 1.5em" id="appendix-B-1.28">Uniform Resource Name  -- a persistent, location-independent identifier.<a href="#appendix-B-1.28" class="pilcrow">¶</a>
+</dd>
+      <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="appendix-conformance">
+<section id="appendix-C">
+      <h2 id="name-appendix-c-conformance-prof">
+<a href="#name-appendix-c-conformance-prof" class="section-name selfRef">Appendix C: Conformance Profiles</a>
+      </h2>
+<p id="appendix-C-1">
+        FideX defines three conformance profiles to enable progressive adoption.
+        Implementations MUST declare which profile(s) they conform to via the
+        <code>conformance_profile</code> field in their AS5 configuration.<a href="#appendix-C-1" class="pilcrow">¶</a></p>
+<div id="conformance-core">
+<section id="appendix-C.1">
+        <h3 id="name-c1-fidex-core">
+<a href="#name-c1-fidex-core" class="section-name selfRef">C.1 FideX Core</a>
+        </h3>
+<p id="appendix-C.1-1">
+          An implementation claiming <strong>FideX Core</strong> conformance MUST support
+          all requirements listed in Sections 2 through 8 of this specification, including:<a href="#appendix-C.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-C.1-2.1">HTTP/1.1 over TLS 1.3<a href="#appendix-C.1-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.2">Sign-then-encrypt: JWE(JWS(payload))<a href="#appendix-C.1-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.3">RS256 signatures; RSA-OAEP + A256GCM encryption<a href="#appendix-C.1-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.4">RSA key size &gt;= 2048 bits<a href="#appendix-C.1-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.5">JWKS endpoint at /.well-known/jwks.json<a href="#appendix-C.1-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.6">AS5 configuration endpoint<a href="#appendix-C.1-2.6" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.7">4-phase discovery handshake<a href="#appendix-C.1-2.7" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.8">Message state machine (QUEUED, SENT, DELIVERED, FAILED)<a href="#appendix-C.1-2.8" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.9">J-MDN generation, signing, and delivery<a href="#appendix-C.1-2.9" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.10">J-MDN fallback delivery via AS5 config receive_receipt endpoint<a href="#appendix-C.1-2.10" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.11">Standard error codes and HTTP status codes<a href="#appendix-C.1-2.11" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.12">Replay detection via message_id cache (&gt;= 24 hours)<a href="#appendix-C.1-2.12" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.1-2.13">Timestamp validation (+/-15-minute window)<a href="#appendix-C.1-2.13" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="conformance-enhanced">
+<section id="appendix-C.2">
+        <h3 id="name-c2-fidex-enhanced">
+<a href="#name-c2-fidex-enhanced" class="section-name selfRef">C.2 FideX Enhanced</a>
+        </h3>
+<p id="appendix-C.2-1">
+          An implementation claiming <strong>FideX Enhanced</strong> conformance MUST satisfy
+          FideX Core AND additionally support:<a href="#appendix-C.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-C.2-2.1">HTTP/2 for multiplexed connections<a href="#appendix-C.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.2">Separate signing and encryption key pairs (different kid and use values)<a href="#appendix-C.2-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.3">RSA key size &gt;= 4096 bits<a href="#appendix-C.2-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.4">Key rotation support (overlapping key publication)<a href="#appendix-C.2-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.5">J-MDN delivery retry per the schedule in Section 7.3.6<a href="#appendix-C.2-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.6">Per-partner rate limiting on all endpoints<a href="#appendix-C.2-2.6" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.7">Structured JSON logging with security event correlation IDs<a href="#appendix-C.2-2.7" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.2-2.8">Health endpoints (/health and /ready)<a href="#appendix-C.2-2.8" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="conformance-edge">
+<section id="appendix-C.3">
+        <h3 id="name-c3-fidex-edge">
+<a href="#name-c3-fidex-edge" class="section-name selfRef">C.3 FideX Edge</a>
+        </h3>
+<p id="appendix-C.3-1">
+          An implementation claiming <strong>FideX Edge</strong> conformance MUST satisfy
+          FideX Enhanced AND additionally support:<a href="#appendix-C.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-C.3-2.1">HTTP/3 over QUIC for connection resilience<a href="#appendix-C.3-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.3-2.2">Mutual TLS (mTLS)  -- client certificate authentication<a href="#appendix-C.3-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="normal" id="appendix-C.3-2.3">HSM-based private key storage<a href="#appendix-C.3-2.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="appendix-test-vectors">
+<section id="appendix-D">
+      <h2 id="name-appendix-d-interoperability">
+<a href="#name-appendix-d-interoperability" class="section-name selfRef">Appendix D: Interoperability Test Vectors</a>
+      </h2>
+<p id="appendix-D-1">
+        This appendix provides known-answer test vectors to allow implementers to verify
+        their JOSE cryptographic operations produce correct output.<a href="#appendix-D-1" class="pilcrow">¶</a></p>
+<p id="appendix-D-2">
+        <strong>WARNING:</strong> The key material in this appendix is public and MUST NOT
+        be used for any production traffic.<a href="#appendix-D-2" class="pilcrow">¶</a></p>
+<p id="appendix-D-3">Test payload (UTF-8 bytes):<a href="#appendix-D-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="appendix-D-4">
+<pre>
+{"order_id":"PO-TEST-001","amount":100.00,"currency":"USD"}
+</pre><a href="#appendix-D-4" class="pilcrow">¶</a>
+</div>
+<p id="appendix-D-5">SHA-256 hash of test payload:<a href="#appendix-D-5" class="pilcrow">¶</a></p>
+<div class="lang-text sourcecode" id="appendix-D-6">
+<pre>
+sha256:
+  bf21a9e8fbc5a3846fb05b4fa0859e0917b2202f9a69e4c98b7b0f09cb281e71
+</pre><a href="#appendix-D-6" class="pilcrow">¶</a>
+</div>
+<p id="appendix-D-7">Expected JWS header for signing:<a href="#appendix-D-7" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="appendix-D-8">
+<pre>
+{"alg":"RS256","kid":"test-sign-2026-01"}
+</pre><a href="#appendix-D-8" class="pilcrow">¶</a>
+</div>
+<p id="appendix-D-9">Expected JWE header for encryption:<a href="#appendix-D-9" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="appendix-D-10">
+<pre>
+{
+  "alg": "RSA-OAEP",
+  "enc": "A256GCM",
+  "cty": "JWT",
+  "kid": "test-enc-2026-01"
+}
+</pre><a href="#appendix-D-10" class="pilcrow">¶</a>
+</div>
+<p id="appendix-D-11">Test routing header:<a href="#appendix-D-11" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="appendix-D-12">
+<pre>
+{
+  "fidex_version": "1.0",
+  "message_id": "fdx-00000000-0000-0000-0000-000000000001",
+  "sender_id": "urn:gln:0000000000001",
+  "receiver_id": "urn:gln:0000000000002",
+  "document_type": "GS1_ORDER_JSON",
+  "timestamp": "2026-01-01T00:00:00.000Z",
+  "receipt_webhook": "https://test.sender.example.com/receipt"
+}
+</pre><a href="#appendix-D-12" class="pilcrow">¶</a>
+</div>
+<p id="appendix-D-13">Verification procedure:<a href="#appendix-D-13" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="appendix-D-14">
+        <li id="appendix-D-14.1">
+          <strong>Sign Test:</strong> Sign the test payload using RS256. Verify using the test public key. Verified payload MUST match original.<a href="#appendix-D-14.1" class="pilcrow">¶</a>
+</li>
+        <li id="appendix-D-14.2">
+          <strong>Encrypt Test:</strong> Encrypt the JWS using RSA-OAEP/A256GCM. Decrypt using the test private key. Decrypted content MUST match the JWS.<a href="#appendix-D-14.2" class="pilcrow">¶</a>
+</li>
+        <li id="appendix-D-14.3">
+          <strong>Hash Test:</strong> Compute SHA-256 of the raw payload bytes. Result MUST equal bf21a9e8fbc5a3846fb05b4fa0859e0917b2202f9a69e4c98b7b0f09cb281e71.<a href="#appendix-D-14.3" class="pilcrow">¶</a>
+</li>
+        <li id="appendix-D-14.4">
+          <strong>Round-Trip Test:</strong> Construct a complete envelope, parse it, decrypt, verify signature, and extract payload. Result MUST match original test payload.<a href="#appendix-D-14.4" class="pilcrow">¶</a>
+</li>
+        <li id="appendix-D-14.5">
+          <strong>J-MDN Test:</strong> Construct a J-MDN for the test message. Sign with receiver's key. Verify the J-MDN signature.<a href="#appendix-D-14.5" class="pilcrow">¶</a>
+</li>
+      </ol>
+</section>
+</div>
+<div id="appendix-schemas">
+<section id="appendix-E">
+      <h2 id="name-appendix-e-json-schema-defi">
+<a href="#name-appendix-e-json-schema-defi" class="section-name selfRef">Appendix E: JSON Schema Definitions</a>
+      </h2>
+<p id="appendix-E-1">
+        The following JSON Schema (Draft-07) definitions provide machine-readable validation
+        rules for FideX structures.<a href="#appendix-E-1" class="pilcrow">¶</a></p>
+<div id="schema-routing-header">
+<section id="appendix-E.1">
+        <h3 id="name-e1-routing-header-schema">
+<a href="#name-e1-routing-header-schema" class="section-name selfRef">E.1 Routing Header Schema</a>
+        </h3>
+<div class="lang-json sourcecode" id="appendix-E.1-1">
+<pre>
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fidex-protocol.org/schemas/v1/routing-header.json",
+  "title": "FideX Routing Header",
+  "type": "object",
+  "required": [
+    "fidex_version", "message_id", "sender_id",
+    "receiver_id", "document_type", "timestamp"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "fidex_version": {
+      "type": "string", "pattern": "^\\d+\\.\\d+$"
+    },
+    "message_id": {
+      "type": "string", "minLength": 1, "maxLength": 256
+    },
+    "sender_id": {
+      "type": "string",
+      "pattern": "^urn:(gln|duns|lei|tin|custom):.+$"
+    },
+    "receiver_id": {
+      "type": "string",
+      "pattern": "^urn:(gln|duns|lei|tin|custom):.+$"
+    },
+    "document_type": {
+      "type": "string", "pattern": "^[A-Z0-9_]+$",
+      "minLength": 1, "maxLength": 128
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "receipt_webhook": {
+      "type": "string", "format": "uri",
+      "pattern": "^https://"
+    },
+    "payload_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "patternProperties": { "^x-": {} }
+}
+</pre><a href="#appendix-E.1-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="schema-jmdn">
+<section id="appendix-E.2">
+        <h3 id="name-e2-j-mdn-schema">
+<a href="#name-e2-j-mdn-schema" class="section-name selfRef">E.2 J-MDN Schema</a>
+        </h3>
+<div class="breakable lang-json sourcecode" id="appendix-E.2-1">
+<pre>
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fidex-protocol.org/schemas/v1/jmdn.json",
+  "title": "FideX J-MDN",
+  "type": "object",
+  "required": [
+    "original_message_id", "status", "receiver_id",
+    "hash_verification", "timestamp", "error_log", "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "original_message_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string", "enum": ["DELIVERED", "FAILED"]
+    },
+    "receiver_id": {
+      "type": "string",
+      "pattern": "^urn:(gln|duns|lei|tin|custom):.+$"
+    },
+    "hash_verification": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "error_log": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["error_code", "error_message"],
+          "properties": {
+            "error_code": {
+              "type": "string",
+              "enum": [
+                "DECRYPTION_FAILED",
+                "SIGNATURE_INVALID",
+                "UNKNOWN_DOCUMENT_TYPE",
+                "PAYLOAD_TOO_LARGE",
+                "INTERNAL_ERROR"
+              ]
+            },
+            "error_message": { "type": "string" },
+            "details": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "signature": { "type": "string", "minLength": 1 }
+  }
+}
+</pre><a href="#appendix-E.2-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="schema-as5-config">
+<section id="appendix-E.3">
+        <h3 id="name-e3-as5-configuration-schema">
+<a href="#name-e3-as5-configuration-schema" class="section-name selfRef">E.3 AS5 Configuration Schema</a>
+        </h3>
+<div class="breakable lang-json sourcecode" id="appendix-E.3-1">
+<pre>
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fidex-protocol.org/schemas/v1/as5-config.json",
+  "title": "FideX AS5 Configuration",
+  "type": "object",
+  "required": [
+    "fidex_version", "supported_versions", "node_id",
+    "organization_name", "public_domain",
+    "endpoints", "security"
+  ],
+  "properties": {
+    "fidex_version": {
+      "type": "string", "pattern": "^\\d+\\.\\d+$"
+    },
+    "supported_versions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "conformance_profile": {
+      "type": "string",
+      "enum": ["core", "enhanced", "edge"]
+    },
+    "node_id": { "type": "string", "pattern": "^urn:" },
+    "organization_name": { "type": "string", "minLength": 1 },
+    "public_domain": { "type": "string" },
+    "supported_document_types": {
+      "type": "array",
+      "items": {
+        "type": "string", "pattern": "^[A-Z0-9_]+$"
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "required": [
+        "receive_message", "receive_receipt",
+        "register", "jwks"
+      ],
+      "properties": {
+        "receive_message": { "type": "string", "format": "uri" },
+        "receive_receipt": { "type": "string", "format": "uri" },
+        "register": { "type": "string", "format": "uri" },
+        "jwks": { "type": "string", "format": "uri" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": [
+        "signature_algorithm", "encryption_algorithm",
+        "content_encryption", "minimum_key_size"
+      ],
+      "properties": {
+        "signature_algorithm": { "type": "string" },
+        "encryption_algorithm": { "type": "string" },
+        "content_encryption": { "type": "string" },
+        "minimum_key_size": {
+          "type": "integer", "minimum": 2048
+        }
+      }
+    }
+  }
+}
+</pre><a href="#appendix-E.3-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-F">
+      <h2 id="name-authors-address">
+<a href="#name-authors-address" class="section-name selfRef">Author's Address</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Javier Munoz</span></div>
+<div dir="auto" class="left"><span class="org">Greicodex Software</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:javier@greicodex.com" class="email">javier@greicodex.com</a>
+</div>
+<div class="url">
+<span>URI:</span>
+<a href="https://greicodex.com" class="url">https://greicodex.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1711 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="rfc7991bis.rnc"?>
+<!DOCTYPE rfc [
+  <!ENTITY nbsp    "&#160;">
+  <!ENTITY zwsp   "&#8203;">
+  <!ENTITY nbhy   "&#8209;">
+  <!ENTITY wj     "&#8288;">
+]>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude"
+     category="info"
+     docName="draft-greicodex-fidex-protocol-00"
+     ipr="trust200902"
+     submissionType="independent"
+     version="3">
+  <!-- FRONT MATTER -->
+  <front>
+    <title abbrev="FideX AS5 Protocol">FideX Application Statement 5 (AS5) Protocol</title>
+    <seriesInfo name="Internet-Draft" value="draft-greicodex-fidex-protocol-00"/>
+    <author fullname="Javier Munoz" initials="J." surname="Munoz">
+      <organization>Greicodex Software</organization>
+      <address>
+        <email>javier@greicodex.com</email>
+        <uri>https://greicodex.com</uri>
+      </address>
+    </author>
+    <date year="2026" month="March" day="16"/>
+    <area>Applications and Real-Time Area (art)</area>
+    <workgroup>Individual Submission</workgroup>
+    <keyword>EDI</keyword>
+    <keyword>B2B</keyword>
+    <keyword>JOSE</keyword>
+    <keyword>JWS</keyword>
+    <keyword>JWE</keyword>
+    <keyword>AS5</keyword>
+    <keyword>electronic data interchange</keyword>
+    <keyword>JSON Web Signature</keyword>
+    <keyword>JSON Web Encryption</keyword>
+    <abstract>
+      <t>
+        This document specifies the FideX Protocol (AS5), a modern application-layer protocol
+        for secure Business-to-Business (B2B) message exchange. FideX provides cryptographic
+        non-repudiation, data integrity, and confidentiality using JOSE (JSON Object Signing
+        and Encryption) over HTTPS, replacing legacy AS2 and AS4 standards with a REST-oriented
+        approach accessible to modern web developers.
+      </t>
+      <t>
+        FideX adopts the "AS" naming lineage: AS2 (<xref target="RFC4130"/>) used
+        S/MIME over HTTP; AS4 (<xref target="OASIS-ebMS"/>) used SOAP/WS-Security;
+        AS5 (FideX) uses REST/JSON/JOSE over HTTPS.
+        This document defines the message format, cryptographic operations, partner discovery,
+        state management, acknowledgment receipts (J-MDN), and error handling.
+      </t>
+    </abstract>
+    <note title="Status of This Document">
+      <t>
+        This Internet-Draft is submitted in full conformance with the provisions of BCP 78
+        and BCP 79. This document is a work in progress and represents the current thinking
+        of the FideX Protocol Working Group at Greicodex Software.
+      </t>
+    </note>
+  </front>
+
+  <!-- MIDDLE: MAIN BODY -->
+  <middle>
+
+    <!-- SECTION 1: INTRODUCTION -->
+    <section anchor="introduction" numbered="true" toc="default">
+      <name>Introduction</name>
+      <section anchor="purpose" numbered="true" toc="default">
+        <name>Purpose</name>
+        <t>
+          FideX (Fast Integration for Digital Enterprises eXchange) defines a secure,
+          reliable message exchange protocol for B2B electronic data interchange. The
+          protocol ensures:
+        </t>
+        <ul spacing="normal">
+          <li><strong>Non-repudiation:</strong> Cryptographic proof of message origin</li>
+          <li><strong>Integrity:</strong> Detection of message tampering</li>
+          <li><strong>Confidentiality:</strong> End-to-end encryption</li>
+          <li><strong>Reliability:</strong> Asynchronous acknowledgments with retry semantics</li>
+        </ul>
+      </section>
+      <section anchor="scope" numbered="true" toc="default">
+        <name>Scope</name>
+        <t>This specification defines:</t>
+        <ul spacing="normal">
+          <li>Message format and structure</li>
+          <li>Cryptographic operations (sign-then-encrypt using JOSE)</li>
+          <li>Partner discovery and registration</li>
+          <li>State management and acknowledgments (J-MDN)</li>
+          <li>Error codes and handling</li>
+        </ul>
+        <t>This specification does NOT define:</t>
+        <ul spacing="normal">
+          <li>Business document formats (the protocol is payload-agnostic)</li>
+          <li>Application-specific processing logic</li>
+          <li>Implementation details or code examples</li>
+          <li>Deployment or operational procedures</li>
+        </ul>
+      </section>
+      <section anchor="as-naming" numbered="true" toc="default">
+        <name>AS Naming Lineage</name>
+        <t>
+          FideX adopts the "AS" (Application Statement) naming lineage from established
+          B2B interchange standards:
+        </t>
+        <ul spacing="normal">
+          <li><strong>AS2</strong> (<xref target="RFC4130"/>) --
+          MIME/S/MIME over HTTP (2005)</li>
+          <li><strong>AS4</strong> (<xref target="OASIS-ebMS"/>) --
+          SOAP/WS-Security over HTTP (2013)</li>
+          <li><strong>AS5</strong> (FideX) --
+          REST/JSON/JOSE over HTTPS (2026)</li>
+        </ul>
+        <t>
+          The designation signals evolutionary continuity while marking a generational
+          leap to modern web-native architecture. AS5 is implementable by any developer
+          with knowledge of REST APIs and standard JOSE libraries, without requiring
+          specialized B2B middleware.
+        </t>
+      </section>
+      <section anchor="terminology" numbered="true" toc="default">
+        <name>Terminology</name>
+        <t>
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+          "OPTIONAL" in this document are to be interpreted as described in
+          BCP 14 <xref target="RFC2119"/> <xref target="RFC8174"/> when, and only
+          when, they appear in all capitals, as shown here.
+        </t>
+        <t>Additional terms used in this document:</t>
+        <dl newline="false" spacing="normal">
+          <dt>Node</dt>
+          <dd>A FideX-compliant server capable of sending and receiving messages.</dd>
+          <dt>Partner</dt>
+          <dd>A trading partner with an established trust relationship.</dd>
+          <dt>Message</dt>
+          <dd>A business document wrapped in a FideX envelope.</dd>
+          <dt>J-MDN</dt>
+          <dd>JSON Message Disposition Notification  -- a signed receipt acknowledging
+          receipt and processing of a FideX message.</dd>
+          <dt>JWKS</dt>
+          <dd>JSON Web Key Set  -- a JSON structure representing a set of public keys.</dd>
+          <dt>AS5 Configuration</dt>
+          <dd>A JSON document published by a node describing its endpoints, supported
+          algorithms, and identity.</dd>
+        </dl>
+      </section>
+    </section>
+
+    <!-- SECTION 2: TRANSPORT LAYER -->
+    <section anchor="transport" numbered="true" toc="default">
+      <name>Transport Layer</name>
+      <section anchor="required-transport" numbered="true" toc="default">
+        <name>Required Transport</name>
+        <t>
+          Nodes MUST support HTTP/1.1 over TLS 1.3 as defined in <xref target="RFC8446"/>.
+          TLS 1.2 (<xref target="RFC5246"/>) MAY be supported with Perfect Forward Secrecy
+          (ECDHE key exchange) as fallback for backward compatibility.
+        </t>
+        <t>Transport requirements:</t>
+        <ul spacing="normal">
+          <li>Port 443 (HTTPS)</li>
+          <li>Valid certificate from a trusted Certificate Authority (CA)</li>
+          <li>Server Name Indication (SNI) per <xref target="RFC6066"/></li>
+          <li>Full certificate chain validation</li>
+        </ul>
+      </section>
+      <section anchor="optional-transports" numbered="true" toc="default">
+        <name>Optional Transports</name>
+        <t>Nodes MAY additionally support:</t>
+        <ul spacing="normal">
+          <li><strong>HTTP/2</strong> (<xref target="RFC9113"/>):
+          For multiplexed connections and improved throughput.</li>
+          <li><strong>HTTP/3</strong> (<xref target="RFC9114"/>): For connection resilience using QUIC.</li>
+        </ul>
+      </section>
+      <section anchor="request-method" numbered="true" toc="default">
+        <name>Request Method</name>
+        <t>
+          All FideX message transmissions MUST use the HTTP POST method to the receiving
+          endpoint specified in the partner's AS5 configuration (see <xref target="discovery"/>).
+        </t>
+      </section>
+      <section anchor="content-type" numbered="true" toc="default">
+        <name>Content Type</name>
+        <t>
+          FideX message envelopes MUST use <tt>Content-Type: application/json</tt>.
+          Registration requests MUST use <tt>Content-Type: application/jose</tt>
+          (see <xref target="discovery-handshake"/>).
+        </t>
+      </section>
+      <section anchor="message-size" numbered="true" toc="default">
+        <name>Message Size Limits</name>
+        <t>
+          Implementations MUST accept messages up to 10 megabytes (complete HTTP request body).
+          Implementations MAY accept larger messages by prior bilateral agreement.
+          Senders MUST NOT assume support above 10 MB without prior explicit agreement.
+          Implementations SHOULD reject oversized messages with HTTP 413 and the error
+          code <tt>PAYLOAD_TOO_LARGE</tt> (see <xref target="error-codes"/>).
+        </t>
+      </section>
+    </section>
+
+    <!-- SECTION 3: MESSAGE STRUCTURE -->
+    <section anchor="message-structure" numbered="true" toc="default">
+      <name>Message Structure</name>
+      <section anchor="envelope" numbered="true" toc="default">
+        <name>Message Envelope</name>
+        <t>
+          A FideX message envelope consists of exactly two top-level JSON fields:
+        </t>
+        <sourcecode name="envelope-structure" type="json"><![CDATA[
+{
+  "routing_header": { ... },
+  "encrypted_payload": "eyJhbGc..."
+}
+        ]]></sourcecode>
+        <t>
+          The <tt>routing_header</tt> is cleartext JSON containing message metadata
+          readable by intermediate infrastructure without decryption. The
+          <tt>encrypted_payload</tt> is a JWE compact serialization that wraps the
+          signed business document. These two fields are the ONLY top-level fields
+          in a FideX message envelope.
+        </t>
+      </section>
+      <section anchor="routing-header" numbered="true" toc="default">
+        <name>Routing Header</name>
+        <t>
+          The routing header is a cleartext JSON object conveying message routing
+          metadata. It MUST contain the following fields:
+        </t>
+        <dl newline="false" spacing="normal">
+          <dt>fidex_version</dt>
+          <dd>
+            (string, REQUIRED) Protocol version in semantic "major.minor" format, e.g., "1.0".
+          </dd>
+          <dt>message_id</dt>
+          <dd>
+            (string, REQUIRED) Globally unique message identifier. UUID v4
+            (<xref target="RFC9562"/>) with an "fdx-" prefix is RECOMMENDED
+            (e.g., "fdx-550e8400-e29b-41d4-a716-446655440000").
+          </dd>
+          <dt>sender_id</dt>
+          <dd>
+            (string, REQUIRED) URN of the sending organization. See
+            <xref target="identifier-format"/> for valid formats.
+          </dd>
+          <dt>receiver_id</dt>
+          <dd>
+            (string, REQUIRED) URN of the receiving organization. See
+            <xref target="identifier-format"/> for valid formats.
+          </dd>
+          <dt>document_type</dt>
+          <dd>
+            (string, REQUIRED) Business document type identifier. MUST match the pattern
+            <tt>^[A-Z0-9_]+$</tt>. See <xref target="document-type-registry"/>.
+          </dd>
+          <dt>timestamp</dt>
+          <dd>
+            (string, REQUIRED) ISO 8601 UTC timestamp with millisecond precision.
+            Format: <tt>YYYY-MM-DDTHH:mm:ss.SSSZ</tt>. The UTC designator "Z" MUST
+            be used; no local timezone offsets are permitted.
+          </dd>
+          <dt>receipt_webhook</dt>
+          <dd>
+            (string, OPTIONAL) HTTPS URL where the J-MDN receipt SHOULD be delivered.
+            HTTP (non-TLS) is NOT allowed. When omitted, the receiver MUST deliver
+            the J-MDN to the sender's <tt>receive_receipt</tt> endpoint from the
+            sender's AS5 configuration (see <xref target="jmdn-delivery"/>).
+          </dd>
+          <dt>payload_digest</dt>
+          <dd>
+            (string, OPTIONAL) SHA-256 digest of the <tt>encrypted_payload</tt> field
+            value. Computed as "sha256:" followed by the lowercase hexadecimal encoding
+            of SHA-256 applied to the UTF-8 byte representation of the
+            <tt>encrypted_payload</tt> string as it appears in the JSON envelope.
+            Enables routing-layer integrity checks without decryption.
+          </dd>
+        </dl>
+        <t>
+          Extension fields MAY be included and MUST use the prefix "x-" to avoid
+          collision with future standard fields. Implementations MUST ignore unknown
+          extension fields without error.
+        </t>
+        <section anchor="identifier-format" numbered="true" toc="default">
+          <name>Identifier Format</name>
+          <t>
+            The <tt>sender_id</tt> and <tt>receiver_id</tt> fields MUST use URN format.
+            The following URN namespaces are recognized:
+          </t>
+          <ul spacing="normal">
+            <li><tt>urn:gln:{gln}</tt>  -- GS1 Global Location Number</li>
+            <li><tt>urn:duns:{duns}</tt>  -- D-U-N-S Number</li>
+            <li><tt>urn:lei:{lei}</tt>  -- Legal Entity Identifier (ISO 17442)</li>
+            <li><tt>urn:tin:{tin}</tt>  -- Tax Identification Number</li>
+            <li><tt>urn:custom:{identifier}</tt>  -- Organization-defined identifier</li>
+          </ul>
+        </section>
+      </section>
+      <section anchor="document-type-registry" numbered="true" toc="default">
+        <name>Document Type Registry</name>
+        <t>
+          The <tt>document_type</tt> field uses a two-tier naming system to accommodate
+          both standardized inter-organization document types and organization-specific
+          custom types.
+        </t>
+        <section anchor="standard-document-types" numbered="true" toc="default">
+          <name>Standard Document Types</name>
+          <t>
+            The following standard document types are defined by the FideX Working Group.
+            Standard types use uppercase alphanumeric characters and underscores, matching
+            the pattern <tt>^[A-Z0-9_]+$</tt>. GS1 document types are defined in
+            <xref target="GS1-JSON"/>.
+          </t>
+          <table align="center">
+            <name>Standard FideX Document Types</name>
+            <thead>
+              <tr><th>Type Identifier</th><th>Standard</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>GS1_ORDER_JSON</td><td>GS1</td><td>Purchase order (JSON binding)</td></tr>
+              <tr><td>GS1_INVOICE_JSON</td><td>GS1</td><td>Commercial invoice (JSON binding)</td></tr>
+              <tr><td>GS1_DESADV_JSON</td><td>GS1</td><td>Despatch advice (JSON binding)</td></tr>
+              <tr><td>GS1_RECADV_JSON</td><td>GS1</td><td>Receiving advice (JSON binding)</td></tr>
+              <tr><td>GS1_CATALOG_JSON</td><td>GS1</td><td>Product catalog (JSON binding)</td></tr>
+              <tr><td>X12_850</td><td>ANSI X12</td><td>Purchase order</td></tr>
+              <tr><td>X12_810</td><td>ANSI X12</td><td>Invoice</td></tr>
+              <tr><td>X12_856</td><td>ANSI X12</td><td>Advance ship notice</td></tr>
+              <tr><td>EDIFACT_ORDERS</td><td>UN/EDIFACT</td><td>Purchase order message</td></tr>
+              <tr><td>EDIFACT_INVOIC</td><td>UN/EDIFACT</td><td>Invoice message</td></tr>
+              <tr><td>EDIFACT_DESADV</td><td>UN/EDIFACT</td><td>Despatch advice message</td></tr>
+              <tr><td>UBL_ORDER_21</td><td>OASIS UBL 2.1</td><td>Order document</td></tr>
+              <tr><td>UBL_INVOICE_21</td><td>OASIS UBL 2.1</td><td>Invoice document</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <section anchor="custom-document-types" numbered="true" toc="default">
+          <name>Custom Document Types</name>
+          <t>
+            Organizations MAY define custom document types using reverse domain notation
+            to avoid collision with standard types and with other organizations' custom types.
+          </t>
+          <t>
+            Custom types MUST follow the pattern: <tt>{TLD}_{ORG}_{DOCTYPE}_{VERSION}</tt>,
+            for example: <tt>COM_ACME_WAREHOUSE_RECEIPT_V2</tt>.
+          </t>
+          <t>
+            Custom types MUST NOT use the reserved prefixes: <tt>GS1_</tt>,
+            <tt>X12_</tt>, <tt>EDIFACT_</tt>, or <tt>UBL_</tt>.
+          </t>
+        </section>
+        <section anchor="receiver-document-type-behavior" numbered="true" toc="default">
+          <name>Receiver Behavior for Document Types</name>
+          <t>Receiver nodes:</t>
+          <ul spacing="normal">
+            <li>MUST accept messages with any syntactically valid <tt>document_type</tt>.</li>
+            <li>SHOULD return a J-MDN with error code <tt>UNKNOWN_DOCUMENT_TYPE</tt>
+            for types they cannot process.</li>
+            <li>MUST NOT reject messages at the HTTP level solely because of an
+            unknown <tt>document_type</tt>. The J-MDN mechanism MUST be used instead.</li>
+          </ul>
+        </section>
+      </section>
+      <section anchor="encrypted-payload-field" numbered="true" toc="default">
+        <name>Encrypted Payload</name>
+        <t>
+          The <tt>encrypted_payload</tt> field contains a JWE (JSON Web Encryption)
+          token in compact serialization as defined in <xref target="RFC7516"/>. The
+          JWE encrypts a JWS (JSON Web Signature) token as defined in
+          <xref target="RFC7515"/>, creating a nested "sign-then-encrypt" structure:
+        </t>
+        <sourcecode name="nested-structure" type="text"><![CDATA[
+JWE( JWS( business_document ) )
+        ]]></sourcecode>
+        <t>
+          This pattern ensures both authenticity (the signature is inside the
+          encryption envelope, protecting it from substitution) and confidentiality
+          (the business content is encrypted end-to-end).
+        </t>
+      </section>
+    </section>
+
+    <!-- SECTION 4: CRYPTOGRAPHIC REQUIREMENTS -->
+    <section anchor="cryptography" numbered="true" toc="default">
+      <name>Cryptographic Requirements</name>
+      <section anchor="jws-signature" numbered="true" toc="default">
+        <name>Signature (JWS)</name>
+        <t>
+          Messages MUST be signed using the sender's private key before encryption.
+        </t>
+        <t>
+          The REQUIRED signing algorithm is <strong>RS256</strong>
+          (RSASSA-PKCS1-v1_5 with SHA-256) as defined in <xref target="RFC7518"/>.
+        </t>
+        <t>The following signing algorithms are OPTIONAL:</t>
+        <ul spacing="normal">
+          <li>RS384, RS512  -- stronger RSA variants</li>
+          <li>PS256, PS384, PS512  -- RSA-PSS variants</li>
+          <li>ES256 (ECDSA with P-256 and SHA-256)  -- RECOMMENDED for new deployments</li>
+          <li>ES384 (ECDSA with P-384 and SHA-384)</li>
+        </ul>
+        <t>
+          Minimum key sizes: 2048 bits for RSA (4096 bits RECOMMENDED); P-256 minimum
+          for ECDSA (P-384 RECOMMENDED).
+        </t>
+        <t>The JWS Protected Header MUST include:</t>
+        <sourcecode name="jws-header" type="json"><![CDATA[
+{
+  "alg": "RS256",
+  "kid": "{sender-key-id}"
+}
+        ]]></sourcecode>
+      </section>
+      <section anchor="jwe-encryption" numbered="true" toc="default">
+        <name>Encryption (JWE)</name>
+        <t>
+          Signed messages MUST be encrypted using the receiver's public key.
+        </t>
+        <t>The REQUIRED algorithms are:</t>
+        <ul spacing="normal">
+          <li><strong>Key Encryption:</strong> RSA-OAEP as defined in <xref target="RFC7518"/></li>
+          <li><strong>Content Encryption:</strong> A256GCM (AES-256-GCM)</li>
+        </ul>
+        <t>The JWE Protected Header MUST include:</t>
+        <sourcecode name="jwe-header" type="json"><![CDATA[
+{
+  "alg": "RSA-OAEP",
+  "enc": "A256GCM",
+  "cty": "JWT",
+  "kid": "{receiver-key-id}"
+}
+        ]]></sourcecode>
+        <t>
+          The <tt>cty</tt> (content type) header parameter MUST be set to "JWT" to indicate
+          the JWE payload contains a nested JWS/JWT token, per <xref target="RFC7516"/>
+          Section 4.1.12. This is required for correct processing of nested tokens.
+        </t>
+      </section>
+      <section anchor="payload-encoding" numbered="true" toc="default">
+        <name>Payload Encoding</name>
+        <t>
+          The JWS payload MUST be the UTF-8 encoding of the JSON-serialized business document.
+          Binary payloads (images, PDFs, etc.) MUST be base64-encoded before JWS signing.
+        </t>
+      </section>
+      <section anchor="sender-identity" numbered="true" toc="default">
+        <name>Sender Identity Verification</name>
+        <t>
+          Receivers MUST verify that the JWS signing key identified by <tt>kid</tt> in the
+          JWS header belongs to the partner identified by <tt>sender_id</tt> in the routing
+          header. Specifically:
+        </t>
+        <ul spacing="normal">
+          <li>The <tt>kid</tt> MUST resolve to a public key in the sender's JWKS.</li>
+          <li>The sender's JWKS MUST be fetched from the <tt>public_domain</tt> associated
+          with the <tt>sender_id</tt> in the local partner registry.</li>
+        </ul>
+        <t>
+          This prevents cross-partner key substitution attacks where an attacker uses a
+          valid key from one partner to impersonate another.
+        </t>
+      </section>
+      <section anchor="prohibited-algorithms" numbered="true" toc="default">
+        <name>Prohibited Algorithms</name>
+        <t>Implementations MUST NOT use:</t>
+        <ul spacing="normal">
+          <li>The <tt>none</tt> algorithm (unsigned tokens)</li>
+          <li>Symmetric signature algorithms (HS256, HS384, HS512)</li>
+          <li>RSA keys smaller than 2048 bits</li>
+          <li>Deprecated algorithms: MD5, SHA-1-based signatures</li>
+        </ul>
+      </section>
+    </section>
+
+    <!-- SECTION 5: KEY DISTRIBUTION -->
+    <section anchor="key-distribution" numbered="true" toc="default">
+      <name>Key Distribution</name>
+      <section anchor="jwks-endpoint" numbered="true" toc="default">
+        <name>JSON Web Key Set (JWKS) Endpoint</name>
+        <t>
+          Nodes MUST publish their public keys via a JWKS endpoint at the well-known URI:
+        </t>
+        <sourcecode name="jwks-uri" type="text"><![CDATA[
+https://{public_domain}/.well-known/jwks.json
+        ]]></sourcecode>
+        <t>This endpoint:</t>
+        <ul spacing="normal">
+          <li>MUST be publicly accessible without authentication.</li>
+          <li>MUST return <tt>Content-Type: application/json</tt>.</li>
+          <li>SHOULD include <tt>Cache-Control</tt> headers (1 hour RECOMMENDED).</li>
+        </ul>
+      </section>
+      <section anchor="jwks-format" numbered="true" toc="default">
+        <name>JWKS Format</name>
+        <t>
+          Per <xref target="RFC7517"/>, keys MUST include at minimum the following fields.
+          An RSA signing key example:
+        </t>
+        <sourcecode name="jwks-rsa-example" type="json"><![CDATA[
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "kid": "acme-sign-rsa-2026-01",
+      "alg": "RS256",
+      "n": "{base64url-encoded-modulus}",
+      "e": "AQAB"
+    }
+  ]
+}
+        ]]></sourcecode>
+        <t>An EC signing key example:</t>
+        <sourcecode name="jwks-ec-example" type="json"><![CDATA[
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "use": "sig",
+      "kid": "acme-sign-ec-2026-01",
+      "alg": "ES256",
+      "crv": "P-256",
+      "x": "{base64url-x-coordinate}",
+      "y": "{base64url-y-coordinate}"
+    }
+  ]
+}
+        ]]></sourcecode>
+        <t>Field semantics:</t>
+        <dl newline="false" spacing="normal">
+          <dt>kty</dt><dd>Key type: "RSA" or "EC".</dd>
+          <dt>use</dt><dd>"sig" for signing keys; "enc" for encryption keys.</dd>
+          <dt>kid</dt><dd>Unique key identifier used in JWS/JWE headers.</dd>
+          <dt>alg</dt><dd>Algorithm for this key (RS256, ES256, RSA-OAEP, etc.).</dd>
+        </dl>
+      </section>
+      <section anchor="key-rotation" numbered="true" toc="default">
+        <name>Key Rotation</name>
+        <t>
+          Implementations SHOULD rotate keys annually. During rotation, the following
+          procedure MUST be followed to ensure uninterrupted partner communication:
+        </t>
+        <ol spacing="normal">
+          <li>Publish the new key alongside the old key in the JWKS.</li>
+          <li>Maintain both keys for a transition period (30-60 days RECOMMENDED).</li>
+          <li>Begin signing new outbound messages with the new key after partners
+          have had time to cache it.</li>
+          <li>Remove the old key from the JWKS after the transition period.</li>
+        </ol>
+        <t>
+          The <tt>kid</tt> value SHOULD encode the purpose and date to aid key management,
+          e.g., "org-sign-rsa-2026-01".
+        </t>
+      </section>
+    </section>
+
+    <!-- SECTION 6: PARTNER DISCOVERY -->
+    <section anchor="discovery" numbered="true" toc="default">
+      <name>Partner Discovery</name>
+      <section anchor="discovery-overview" numbered="true" toc="default">
+        <name>Discovery Overview</name>
+        <t>
+          Partner discovery enables automated trading partner onboarding without manual
+          certificate exchange. The process consists of four phases:
+        </t>
+        <ol spacing="normal">
+          <li>Configuration discovery</li>
+          <li>Key retrieval</li>
+          <li>Signed registration</li>
+          <li>Mutual confirmation</li>
+        </ol>
+        <t>
+          The AS5 configuration URL MAY be distributed via QR code, email, or a trading
+          partner portal. The protocol is designed so that scanning a QR code initiates
+          fully automated mutual trust establishment.
+        </t>
+      </section>
+      <section anchor="as5-config" numbered="true" toc="default">
+        <name>AS5 Configuration Endpoint</name>
+        <t>
+          Nodes MUST expose an AS5 configuration document at an HTTPS URL. This URL:
+        </t>
+        <ul spacing="normal">
+          <li>MAY be at any path (no required well-known location).</li>
+          <li>MAY include a single-use security token as a query parameter.</li>
+          <li>SHOULD be shareable via QR code.</li>
+        </ul>
+        <t>The AS5 configuration document structure:</t>
+        <sourcecode name="as5-config-example" type="json"><![CDATA[
+{
+  "fidex_version": "1.0",
+  "supported_versions": ["1.0"],
+  "conformance_profile": "core",
+  "node_id": "urn:gln:1234567890123",
+  "organization_name": "Example Corp",
+  "public_domain": "fidex.example.com",
+  "supported_document_types": ["GS1_ORDER_JSON", "GS1_INVOICE_JSON"],
+  "endpoints": {
+    "receive_message": "https://fidex.example.com/api/v1/receive",
+    "receive_receipt": "https://fidex.example.com/api/v1/receipt",
+    "register": "https://fidex.example.com/api/v1/register",
+    "jwks": "https://fidex.example.com/.well-known/jwks.json"
+  },
+  "security": {
+    "signature_algorithm": "RS256",
+    "encryption_algorithm": "RSA-OAEP",
+    "content_encryption": "A256GCM",
+    "minimum_key_size": 2048
+  }
+}
+        ]]></sourcecode>
+        <t>Required fields in the AS5 configuration:</t>
+        <dl newline="false" spacing="normal">
+          <dt>fidex_version</dt><dd>Current active protocol version (string, REQUIRED).</dd>
+          <dt>supported_versions</dt><dd>Array of all protocol versions this node supports (array, REQUIRED).</dd>
+          <dt>node_id</dt><dd>URN identifier for this node (string, REQUIRED).</dd>
+          <dt>organization_name</dt><dd>Human-readable organization name (string, REQUIRED).</dd>
+          <dt>public_domain</dt><dd>Public-facing domain name hosting JWKS and endpoints (string, REQUIRED).</dd>
+          <dt>endpoints</dt><dd>Object containing service endpoint URLs (object, REQUIRED). MUST include: receive_message, receive_receipt, register, jwks.</dd>
+          <dt>security</dt><dd>Cryptographic algorithm declarations (object, REQUIRED).</dd>
+          <dt>conformance_profile</dt><dd>"core", "enhanced", or "edge" (string, OPTIONAL).</dd>
+          <dt>supported_document_types</dt><dd>Array of document_type identifiers this node processes (array, OPTIONAL).</dd>
+        </dl>
+        <section anchor="version-negotiation" numbered="true" toc="default">
+          <name>Version Negotiation</name>
+          <t>
+            When two nodes with different supported versions communicate, the sender MUST:
+          </t>
+          <ol spacing="normal">
+            <li>Retrieve the receiver's <tt>supported_versions</tt> from their AS5 configuration.</li>
+            <li>Select the highest version present in BOTH <tt>supported_versions</tt> arrays.</li>
+            <li>Set <tt>fidex_version</tt> in the routing header to the negotiated version.</li>
+          </ol>
+          <t>
+            The receiver MUST reject messages with a <tt>fidex_version</tt> not present in its
+            <tt>supported_versions</tt>.
+          </t>
+          <t>
+            If no common version exists, the sender MUST NOT transmit and SHOULD report
+            an incompatibility error to the local system.
+          </t>
+        </section>
+      </section>
+      <section anchor="discovery-handshake" numbered="true" toc="default">
+        <name>Discovery Handshake</name>
+        <t>
+          The four-phase discovery handshake proceeds as follows:
+        </t>
+        <t><strong>Phase 1  -- Initiator Discovers Responder:</strong></t>
+        <ol spacing="normal">
+          <li>Initiator obtains the responder's AS5 configuration URL.</li>
+          <li>Initiator fetches the responder's AS5 configuration document.</li>
+          <li>Initiator fetches the responder's JWKS from the well-known endpoint.</li>
+        </ol>
+        <t><strong>Phase 2  -- Initiator Registers:</strong></t>
+        <t>The initiator constructs and submits a signed registration payload:</t>
+        <sourcecode name="registration-payload" type="json"><![CDATA[
+{
+  "fidex_version": "1.0",
+  "initiator_node_id": "urn:gln:...",
+  "initiator_as5_config_url": "https://...",
+  "security_token": "...",
+  "timestamp": "2026-03-09T19:00:00.000Z"
+}
+        ]]></sourcecode>
+        <ol spacing="normal">
+          <li>Initiator constructs the registration payload as shown above.</li>
+          <li>Initiator signs the payload with its private key (JWS compact serialization).</li>
+          <li>Initiator POSTs the JWS to the responder's <tt>register</tt> endpoint with
+          <tt>Content-Type: application/jose</tt>.</li>
+        </ol>
+        <t><strong>Phase 3  -- Responder Validates:</strong></t>
+        <ol spacing="normal">
+          <li>Responder validates the security token (if configured).</li>
+          <li>Responder fetches the initiator's AS5 configuration from the URL in the request.</li>
+          <li>Responder fetches the initiator's JWKS and verifies the JWS signature.</li>
+          <li>Responder stores the initiator's details and returns HTTP 200.</li>
+        </ol>
+        <t><strong>Phase 4  -- Completion:</strong></t>
+        <ol spacing="normal">
+          <li>Initiator receives HTTP 200 confirmation.</li>
+          <li>Initiator stores the responder's details.</li>
+          <li>Both parties MAY immediately exchange FideX messages.</li>
+        </ol>
+      </section>
+      <section anchor="registration-security" numbered="true" toc="default">
+        <name>Registration Security Requirements</name>
+        <t>Registration requests MUST:</t>
+        <ul spacing="normal">
+          <li>Be signed with the initiator's private key (RS256 minimum).</li>
+          <li>Be transmitted with <tt>Content-Type: application/jose</tt>.</li>
+          <li>Include a timestamp within +/-15 minutes of current time.</li>
+          <li>Include the security token if the responder has configured one.</li>
+        </ul>
+        <t>
+          Security tokens MUST contain at least 128 bits of entropy, generated using a
+          cryptographically secure pseudo-random number generator (CSPRNG).
+          Examples: UUID v4, 32 hexadecimal characters, or 22 base64url characters.
+        </t>
+        <t>Responders MUST:</t>
+        <ul spacing="normal">
+          <li>Validate the JWS signature before trusting any payload content.</li>
+          <li>Reject registrations with timestamps outside +/-15 minutes.</li>
+          <li>Reject invalid or previously used security tokens.</li>
+        </ul>
+      </section>
+      <section anchor="partner-deregistration" numbered="true" toc="default">
+        <name>Partner De-Registration</name>
+        <t>
+          De-registration is a local, unilateral operation. There is no protocol-level
+          de-registration handshake.
+        </t>
+        <t>Partner states:</t>
+        <table align="center">
+          <name>Partner States</name>
+          <thead>
+            <tr><th>State</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>ACTIVE</td><td>Normal operation  -- messages accepted</td></tr>
+            <tr><td>SUSPENDED</td><td>Temporarily paused  -- messages rejected with HTTP 503</td></tr>
+            <tr><td>INACTIVE</td><td>De-registered  -- messages rejected with HTTP 401</td></tr>
+          </tbody>
+        </table>
+        <t>De-registration procedure:</t>
+        <ol spacing="normal">
+          <li>The initiating party sets partner status to INACTIVE locally.</li>
+          <li>The initiating party SHOULD notify the partner via out-of-band channel.</li>
+          <li>The initiating party MUST continue accepting J-MDNs for in-flight messages.</li>
+          <li>After a 24-hour grace period, new inbound messages MUST be rejected with HTTP 401.</li>
+          <li>Partner records SHOULD be retained for audit purposes (7 years RECOMMENDED).</li>
+        </ol>
+      </section>
+    </section>
+
+    <!-- SECTION 7: MESSAGE STATES AND RECEIPTS -->
+    <section anchor="message-states" numbered="true" toc="default">
+      <name>Message States and Receipts</name>
+      <section anchor="states" numbered="true" toc="default">
+        <name>Message State Machine</name>
+        <t>Messages transition through the following states:</t>
+        <table align="center">
+          <name>Message States</name>
+          <thead>
+            <tr><th>State</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>QUEUED</td><td>Created locally, awaiting transmission</td></tr>
+            <tr><td>SENT</td><td>Transmitted to receiver, awaiting J-MDN receipt</td></tr>
+            <tr><td>DELIVERED</td><td>J-MDN received and cryptographically verified</td></tr>
+            <tr><td>FAILED</td><td>Permanent failure or maximum retries exceeded</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section anchor="sync-response" numbered="true" toc="default">
+        <name>Synchronous HTTP Response</name>
+        <t>
+          Upon receiving a message, nodes MUST perform structural validation and return:
+        </t>
+        <ul spacing="normal">
+          <li><strong>HTTP 202 Accepted:</strong> Message is structurally valid and queued for processing.</li>
+          <li><strong>HTTP 4xx/5xx:</strong> Immediate rejection (see <xref target="error-handling"/>).</li>
+        </ul>
+        <t>
+          HTTP 202 indicates structural acceptance only. It does NOT indicate successful
+          decryption, business document processing, or J-MDN generation.
+        </t>
+        <t>
+          <strong>Idempotency:</strong> Receivers MUST handle duplicate <tt>message_id</tt>
+          values idempotently. If a receiver encounters a <tt>message_id</tt> it has already
+          accepted, it MUST return HTTP 202 again and MUST NOT process the message a second
+          time. This ensures safe sender retries when HTTP responses are lost.
+        </t>
+      </section>
+      <section anchor="jmdn" numbered="true" toc="default">
+        <name>Asynchronous Receipt: J-MDN</name>
+        <t>
+          The J-MDN (JSON Message Disposition Notification) is the legally most significant
+          artifact in the FideX protocol. It provides cryptographic proof that a specific
+          message was received, decrypted, and accepted or rejected by the trading partner.
+        </t>
+        <t>
+          After processing a message, the receiver MUST send a J-MDN to the sender.
+          The delivery target is determined as follows:
+        </t>
+        <ol spacing="normal">
+          <li>If <tt>receipt_webhook</tt> is present in the routing header, deliver to that URL.</li>
+          <li>Otherwise, deliver to the sender's <tt>receive_receipt</tt> endpoint from the sender's AS5 configuration.</li>
+          <li>If neither is available, the J-MDN MUST be stored and the failure logged; J-MDNs MUST NOT be discarded.</li>
+        </ol>
+        <section anchor="jmdn-schema" numbered="true" toc="default">
+          <name>J-MDN Payload Schema</name>
+          <t>The J-MDN JSON object contains the following fields:</t>
+          <dl newline="false" spacing="normal">
+            <dt>original_message_id</dt>
+            <dd>(string, REQUIRED) The <tt>message_id</tt> from the original message's routing_header.</dd>
+            <dt>status</dt>
+            <dd>(string, REQUIRED) Either "DELIVERED" or "FAILED".</dd>
+            <dt>receiver_id</dt>
+            <dd>(string, REQUIRED) URN of the receiver generating this J-MDN. MUST match the <tt>receiver_id</tt> in the original routing_header.</dd>
+            <dt>hash_verification</dt>
+            <dd>(string, REQUIRED) SHA-256 hash of the raw business payload bytes before JWS signing. Format: "sha256:{64 hex characters}". See <xref target="hash-verification"/>.</dd>
+            <dt>timestamp</dt>
+            <dd>(string, REQUIRED) ISO 8601 UTC timestamp when the J-MDN was created. Format: YYYY-MM-DDTHH:mm:ss.SSSZ.</dd>
+            <dt>error_log</dt>
+            <dd>(object|null, REQUIRED) MUST be null when status is "DELIVERED". MUST be an error object when status is "FAILED".</dd>
+            <dt>signature</dt>
+            <dd>(string, REQUIRED) JWS compact serialization covering all other J-MDN fields. See <xref target="jmdn-signature"/>.</dd>
+          </dl>
+          <t>Positive J-MDN example (DELIVERED):</t>
+          <sourcecode name="jmdn-positive" type="json"><![CDATA[
+{
+  "original_message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "DELIVERED",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:9f86d08...b0f00a08",
+  "timestamp": "2026-03-09T19:30:02.000Z",
+  "error_log": null,
+  "signature": "eyJhbGciOiJSUzI1NiIs..."
+}
+          ]]></sourcecode>
+          <t>Negative J-MDN example (FAILED):</t>
+          <sourcecode name="jmdn-negative" type="json"><![CDATA[
+{
+  "original_message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "FAILED",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:0000...0000",
+  "timestamp": "2026-03-09T19:30:02.000Z",
+  "error_log": {
+    "error_code": "DECRYPTION_FAILED",
+    "error_message": "Unable to decrypt payload",
+    "details": "Key ID mismatch"
+  },
+  "signature": "eyJhbGciOiJSUzI1NiIs..."
+}
+          ]]></sourcecode>
+        </section>
+        <section anchor="hash-verification" numbered="true" toc="default">
+          <name>Hash Verification</name>
+          <t>
+            The <tt>hash_verification</tt> field proves that the receiver decrypted exactly
+            the payload the sender signed.
+          </t>
+          <t>Definition:</t>
+          <sourcecode name="hash-definition" type="text"><![CDATA[
+hash_verification =
+    "sha256:" || hex( SHA-256( raw_business_payload_bytes ) )
+          ]]></sourcecode>
+          <t>
+            Where <tt>raw_business_payload_bytes</tt> is the UTF-8 encoded bytes of the
+            business JSON payload BEFORE JWS signing (i.e., the exact cleartext that was
+            the input to the JWS sign operation).
+          </t>
+          <t>
+            When <tt>status</tt> is "FAILED" and the receiver could NOT decrypt the
+            payload, <tt>hash_verification</tt> MUST be set to a string of 64 zero
+            hex digits: "sha256:" followed by 64 ASCII "0" characters.
+          </t>
+        </section>
+        <section anchor="jmdn-signature" numbered="true" toc="default">
+          <name>J-MDN Signature Requirements</name>
+          <t>
+            The <tt>signature</tt> field MUST contain a JWS compact serialization covering
+            all other J-MDN fields (i.e., all fields except <tt>signature</tt> itself).
+          </t>
+          <t>JWS Protected Header for J-MDN signing:</t>
+          <sourcecode name="jmdn-jws-header" type="json"><![CDATA[
+{
+  "alg": "RS256",
+  "kid": "{receiver-signing-key-id}"
+}
+          ]]></sourcecode>
+          <t>Signing procedure:</t>
+          <ol spacing="normal">
+            <li>Construct a JSON object with all J-MDN fields EXCEPT <tt>signature</tt>.</li>
+            <li>Serialize to canonical JSON: no extra whitespace; keys in alphabetical order
+            (error_log, hash_verification, original_message_id, receiver_id, status, timestamp).</li>
+            <li>Sign using RS256 with the receiver's private signing key.</li>
+            <li>Set <tt>signature</tt> to the resulting JWS compact serialization.</li>
+          </ol>
+          <t>Verification procedure (sender side):</t>
+          <ol spacing="normal">
+            <li>Extract <tt>signature</tt> from the received J-MDN.</li>
+            <li>Parse JWS; extract <tt>kid</tt> from the JWS header.</li>
+            <li>Look up the receiver's public key from their JWKS using <tt>kid</tt>.</li>
+            <li>Verify the JWS signature.</li>
+            <li>Compare the JWS payload with the remaining J-MDN fields for consistency.</li>
+          </ol>
+        </section>
+        <section anchor="jmdn-error-codes" numbered="true" toc="default">
+          <name>J-MDN Error Codes</name>
+          <t>
+            When <tt>status</tt> is "FAILED", the <tt>error_log</tt> object MUST contain:
+          </t>
+          <dl newline="false" spacing="normal">
+            <dt>error_code</dt><dd>(string, REQUIRED) Machine-readable code from the table below.</dd>
+            <dt>error_message</dt><dd>(string, REQUIRED) Human-readable description.</dd>
+            <dt>details</dt><dd>(string, OPTIONAL) Additional diagnostic info. MUST NOT contain sensitive data.</dd>
+          </dl>
+          <table align="center">
+            <name>Standard J-MDN Error Codes</name>
+            <thead>
+              <tr><th>Code</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>DECRYPTION_FAILED</td><td>Cannot decrypt JWE (wrong key or corrupted ciphertext)</td></tr>
+              <tr><td>SIGNATURE_INVALID</td><td>JWS signature verification failed</td></tr>
+              <tr><td>UNKNOWN_DOCUMENT_TYPE</td><td>The document_type is not supported by the receiver</td></tr>
+              <tr><td>PAYLOAD_TOO_LARGE</td><td>Message exceeds receiver's processing limits</td></tr>
+              <tr><td>INTERNAL_ERROR</td><td>Receiver encountered an internal processing error</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <section anchor="jmdn-delivery" numbered="true" toc="default">
+          <name>J-MDN Delivery Protocol</name>
+          <t>The J-MDN is delivered via HTTP POST:</t>
+          <sourcecode name="jmdn-http-request" type="http"><![CDATA[
+POST {receipt_webhook} HTTP/1.1
+Host: {sender_host}
+Content-Type: application/json
+X-FideX-Original-Message-ID: {original_message_id}
+
+{J-MDN JSON body}
+          ]]></sourcecode>
+          <t>Expected response:</t>
+          <sourcecode name="jmdn-http-response" type="json"><![CDATA[
+{
+  "receipt_acknowledged": true
+}
+          ]]></sourcecode>
+          <t>Timing requirements:</t>
+          <ul spacing="normal">
+            <li>Receivers SHOULD send J-MDN within 5 minutes of receiving the original message.</li>
+            <li>If processing takes longer, the J-MDN MUST still be sent when processing completes.</li>
+            <li>There is no strict upper time limit; delivery is asynchronous by design.</li>
+          </ul>
+        </section>
+        <section anchor="jmdn-retry" numbered="true" toc="default">
+          <name>J-MDN Delivery Retry Schedule</name>
+          <t>
+            If the J-MDN delivery endpoint is unreachable, the receiver SHOULD retry
+            according to the following schedule:
+          </t>
+          <ul spacing="normal">
+            <li>Attempt 1: Immediate</li>
+            <li>Attempt 2: +1 minute</li>
+            <li>Attempt 3: +5 minutes</li>
+            <li>Attempt 4: +15 minutes</li>
+            <li>Attempt 5: +1 hour</li>
+          </ul>
+          <t>
+            After 5 failed attempts, the receiver SHOULD log the failure and store the
+            J-MDN for manual retrieval. The J-MDN MUST NOT be discarded.
+          </t>
+        </section>
+      </section>
+      <section anchor="sender-retry" numbered="true" toc="default">
+        <name>Sender Retry Semantics</name>
+        <t>
+          Senders SHOULD retry failed transmissions with exponential backoff:
+        </t>
+        <ul spacing="normal">
+          <li>Attempt 1: Immediate</li>
+          <li>Attempt 2: +1 minute</li>
+          <li>Attempt 3: +5 minutes</li>
+          <li>Attempt 4: +15 minutes</li>
+          <li>Attempt 5: +30 minutes</li>
+          <li>Attempt 6: +1 hour</li>
+        </ul>
+        <t>
+          After 5-6 failed attempts, the message SHOULD transition to FAILED state
+          requiring manual operator intervention.
+        </t>
+      </section>
+    </section>
+
+    <!-- SECTION 8: ERROR HANDLING -->
+    <section anchor="error-handling" numbered="true" toc="default">
+      <name>Error Handling</name>
+      <section anchor="http-status-codes" numbered="true" toc="default">
+        <name>HTTP Status Codes</name>
+        <table align="center">
+          <name>HTTP Status Code Semantics</name>
+          <thead>
+            <tr><th>Code</th><th>Meaning</th><th>Sender Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>202</td><td>Accepted for processing</td><td>Wait for J-MDN</td></tr>
+            <tr><td>400</td><td>Invalid message structure</td><td>Do not retry (permanent error)</td></tr>
+            <tr><td>401</td><td>Authentication failed or partner INACTIVE</td><td>Do not retry (permanent error)</td></tr>
+            <tr><td>413</td><td>Payload too large</td><td>Do not retry (permanent error)</td></tr>
+            <tr><td>429</td><td>Rate limit exceeded</td><td>Retry with backoff; honor Retry-After header</td></tr>
+            <tr><td>500</td><td>Server internal error</td><td>Retry with backoff</td></tr>
+            <tr><td>503</td><td>Service unavailable or partner SUSPENDED</td><td>Retry with backoff</td></tr>
+          </tbody>
+        </table>
+        <t>
+          Implementations SHOULD include a <tt>Retry-After</tt> header on HTTP 429 responses,
+          per <xref target="RFC9110"/> Section 10.2.3.
+        </t>
+      </section>
+      <section anchor="error-format" numbered="true" toc="default">
+        <name>Error Response Format</name>
+        <t>All error responses MUST use the following JSON structure:</t>
+        <sourcecode name="error-response" type="json"><![CDATA[
+{
+  "error": {
+    "code": "INVALID_ROUTING_HEADER",
+    "message": "Missing required field: message_id",
+    "timestamp": "2026-03-09T19:00:00.000Z"
+  }
+}
+        ]]></sourcecode>
+      </section>
+      <section anchor="error-codes" numbered="true" toc="default">
+        <name>Standard Error Codes</name>
+        <t>Message transmission errors:</t>
+        <ul spacing="normal">
+          <li><tt>INVALID_ROUTING_HEADER</tt>  -- Missing or malformed routing header</li>
+          <li><tt>UNKNOWN_RECEIVER</tt>  -- receiver_id not recognized in partner registry</li>
+          <li><tt>UNKNOWN_DOCUMENT_TYPE</tt>  -- document_type not supported</li>
+          <li><tt>PAYLOAD_TOO_LARGE</tt>  -- Message exceeds the 10 MB size limit</li>
+        </ul>
+        <t>Cryptographic errors:</t>
+        <ul spacing="normal">
+          <li><tt>DECRYPTION_FAILED</tt>  -- Cannot decrypt JWE</li>
+          <li><tt>SIGNATURE_INVALID</tt>  -- JWS signature verification failed</li>
+          <li><tt>UNKNOWN_KEY_ID</tt>  -- Key ID not found in JWKS</li>
+        </ul>
+        <t>Discovery errors:</t>
+        <ul spacing="normal">
+          <li><tt>INVALID_TOKEN</tt>  -- Security token invalid or expired</li>
+          <li><tt>DUPLICATE_REGISTRATION</tt>  -- Partner already registered</li>
+          <li><tt>CONFIG_UNREACHABLE</tt>  -- Cannot fetch AS5 configuration</li>
+        </ul>
+      </section>
+    </section>
+
+    <!-- SECTION 9: SECURITY CONSIDERATIONS -->
+    <section anchor="security" numbered="true" toc="default">
+      <name>Security Considerations</name>
+      <section anchor="threat-model" numbered="true" toc="default">
+        <name>Threat Model</name>
+        <t>FideX addresses the following threats:</t>
+        <dl newline="false" spacing="normal">
+          <dt>Man-in-the-Middle (MitM)</dt>
+          <dd>Mitigated by TLS 1.3 transport encryption combined with JWE application-layer encryption. An attacker who intercepts the TLS session cannot read the encrypted payload.</dd>
+          <dt>Message Tampering</dt>
+          <dd>Mitigated by JWS digital signatures. Any modification to the signed payload invalidates the signature, detected during verification.</dd>
+          <dt>Replay Attacks</dt>
+          <dd>Mitigated by unique message IDs combined with timestamp validation. Receivers MUST maintain a replay cache and reject duplicate message_id values.</dd>
+          <dt>Repudiation</dt>
+          <dd>Mitigated by cryptographic signatures on both messages (JWS) and receipts (J-MDN signature), creating a legally auditable chain of custody.</dd>
+          <dt>Key Compromise</dt>
+          <dd>Mitigated by key rotation procedures and JWKS-based distribution. Compromised keys can be revoked by removing them from the JWKS.</dd>
+          <dt>Cross-Partner Key Substitution</dt>
+          <dd>Mitigated by sender identity verification (Section 4.4): the receiver verifies the signing key belongs to the claimed sender_id.</dd>
+        </dl>
+      </section>
+      <section anchor="impl-requirements" numbered="true" toc="default">
+        <name>Implementation Security Requirements</name>
+        <t>Implementations MUST:</t>
+        <ul spacing="normal">
+          <li>Validate TLS certificates against a trusted CA store on all outbound connections.</li>
+          <li>Use constant-time comparison for signature verification to prevent timing attacks.</li>
+          <li>Maintain a cache of recently seen message IDs to detect replay attacks.</li>
+          <li>Reject messages with timestamps outside a +/-15-minute window of current time.</li>
+          <li>Maintain the message ID replay cache for at least 24 hours.</li>
+          <li>Synchronize system clocks using NTP (<xref target="RFC5905"/>) or equivalent.</li>
+          <li>Generate cryptographically secure random message IDs using a CSPRNG.</li>
+          <li>Never expose private keys in logs, error messages, or API responses.</li>
+        </ul>
+        <t>Implementations SHOULD:</t>
+        <ul spacing="normal">
+          <li>Implement per-partner rate limiting on all endpoints.</li>
+          <li>Use separate key pairs for signing and encryption (different <tt>use</tt> values).</li>
+          <li>Rotate keys annually following the procedure in <xref target="key-rotation"/>.</li>
+          <li>Monitor for anomalous patterns (repeated authentication failures, invalid signatures).</li>
+        </ul>
+      </section>
+      <section anchor="key-management" numbered="true" toc="default">
+        <name>Key Management</name>
+        <t>Private keys:</t>
+        <ul spacing="normal">
+          <li>MUST be generated using a cryptographically secure random number generator.</li>
+          <li>MUST be stored encrypted at rest.</li>
+          <li>MUST NOT be transmitted over any network.</li>
+          <li>SHOULD be stored in a Hardware Security Module (HSM) for high-security deployments.</li>
+        </ul>
+        <t>Public keys:</t>
+        <ul spacing="normal">
+          <li>MUST be distributed exclusively via the JWKS endpoint.</li>
+          <li>SHOULD include a <tt>kid</tt> value encoding purpose and date (e.g., "org-sign-rsa-2026-01").</li>
+          <li>MAY be cached by consuming parties for up to 24 hours.</li>
+        </ul>
+      </section>
+      <section anchor="compliance" numbered="true" toc="default">
+        <name>Compliance Considerations</name>
+        <t>FideX is designed to support compliance with:</t>
+        <ul spacing="normal">
+          <li>Non-repudiation requirements for legally binding electronic transactions.</li>
+          <li>FDA 21 CFR Part 11 (electronic signatures in regulated industries).</li>
+          <li>GDPR and similar data protection frameworks (via encrypted payloads).</li>
+          <li>GS1 and UN/CEFACT EDI standards (via payload-agnostic design).</li>
+        </ul>
+        <t>Recommended audit trail retention periods:</t>
+        <ul spacing="normal">
+          <li>Message metadata: 7 years</li>
+          <li>Cryptographic signatures (JWS): 7 years</li>
+          <li>J-MDN receipts: 7 years</li>
+        </ul>
+      </section>
+      <section anchor="deployment-note" numbered="true" toc="default">
+        <name>Deployment Note</name>
+        <t>
+          FideX is designed to operate on standard web infrastructure. A conforming node
+          can be implemented as a standard HTTPS web application behind any reverse proxy
+          (Nginx, Apache, Caddy, cloud load balancers). No specialized B2B middleware,
+          message broker, or gateway software is required. This is a key differentiator
+          from AS2 (which required dedicated gateway software) and AS4 (which required
+          SOAP stacks and ebMS processing engines).
+        </t>
+      </section>
+    </section>
+
+    <!-- SECTION 10: IANA CONSIDERATIONS -->
+    <section anchor="iana-considerations" numbered="true" toc="default">
+      <name>IANA Considerations</name>
+      <t>
+        This document has no IANA actions.
+      </t>
+    </section>
+
+  </middle>
+
+  <!-- BACK MATTER: REFERENCES AND APPENDICES -->
+  <back>
+
+    <references>
+      <name>References</name>
+
+      <references anchor="normative-references">
+        <name>Normative References</name>
+
+        <reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119">
+          <front>
+            <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+            <author initials="S." surname="Bradner" fullname="S. Bradner"/>
+            <date year="1997" month="March"/>
+          </front>
+          <seriesInfo name="BCP" value="14"/>
+          <seriesInfo name="RFC" value="2119"/>
+          <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+        </reference>
+
+        <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174">
+          <front>
+            <title>Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</title>
+            <author initials="B." surname="Leiba" fullname="B. Leiba"/>
+            <date year="2017" month="May"/>
+          </front>
+          <seriesInfo name="BCP" value="14"/>
+          <seriesInfo name="RFC" value="8174"/>
+          <seriesInfo name="DOI" value="10.17487/RFC8174"/>
+        </reference>
+
+        <reference anchor="RFC8446" target="https://www.rfc-editor.org/info/rfc8446">
+          <front>
+            <title>The Transport Layer Security (TLS) Protocol Version 1.3</title>
+            <author initials="E." surname="Rescorla" fullname="E. Rescorla"/>
+            <date year="2018" month="August"/>
+          </front>
+          <seriesInfo name="RFC" value="8446"/>
+          <seriesInfo name="DOI" value="10.17487/RFC8446"/>
+        </reference>
+
+        <reference anchor="RFC6066" target="https://www.rfc-editor.org/info/rfc6066">
+          <front>
+            <title>Transport Layer Security (TLS) Extensions: Extension Definitions</title>
+            <author initials="D." surname="Eastlake 3rd" fullname="D. Eastlake 3rd"/>
+            <date year="2011" month="January"/>
+          </front>
+          <seriesInfo name="RFC" value="6066"/>
+          <seriesInfo name="DOI" value="10.17487/RFC6066"/>
+        </reference>
+
+        <reference anchor="RFC7515" target="https://www.rfc-editor.org/info/rfc7515">
+          <front>
+            <title>JSON Web Signature (JWS)</title>
+            <author initials="M." surname="Jones" fullname="M. Jones"/>
+            <author initials="J." surname="Bradley" fullname="J. Bradley"/>
+            <author initials="N." surname="Sakimura" fullname="N. Sakimura"/>
+            <date year="2015" month="May"/>
+          </front>
+          <seriesInfo name="RFC" value="7515"/>
+          <seriesInfo name="DOI" value="10.17487/RFC7515"/>
+        </reference>
+
+        <reference anchor="RFC7516" target="https://www.rfc-editor.org/info/rfc7516">
+          <front>
+            <title>JSON Web Encryption (JWE)</title>
+            <author initials="M." surname="Jones" fullname="M. Jones"/>
+            <author initials="J." surname="Hildebrand" fullname="J. Hildebrand"/>
+            <date year="2015" month="May"/>
+          </front>
+          <seriesInfo name="RFC" value="7516"/>
+          <seriesInfo name="DOI" value="10.17487/RFC7516"/>
+        </reference>
+
+        <reference anchor="RFC7517" target="https://www.rfc-editor.org/info/rfc7517">
+          <front>
+            <title>JSON Web Key (JWK)</title>
+            <author initials="M." surname="Jones" fullname="M. Jones"/>
+            <date year="2015" month="May"/>
+          </front>
+          <seriesInfo name="RFC" value="7517"/>
+          <seriesInfo name="DOI" value="10.17487/RFC7517"/>
+        </reference>
+
+        <reference anchor="RFC7518" target="https://www.rfc-editor.org/info/rfc7518">
+          <front>
+            <title>JSON Web Algorithms (JWA)</title>
+            <author initials="M." surname="Jones" fullname="M. Jones"/>
+            <date year="2015" month="May"/>
+          </front>
+          <seriesInfo name="RFC" value="7518"/>
+          <seriesInfo name="DOI" value="10.17487/RFC7518"/>
+        </reference>
+
+        <reference anchor="RFC9562" target="https://www.rfc-editor.org/info/rfc9562">
+          <front>
+            <title>Universally Unique IDentifiers (UUIDs)</title>
+            <author initials="K." surname="Davis" fullname="K. Davis"/>
+            <author initials="B." surname="Peabody" fullname="B. Peabody"/>
+            <author initials="P." surname="Leach" fullname="P. Leach"/>
+            <date year="2024" month="May"/>
+          </front>
+          <seriesInfo name="RFC" value="9562"/>
+          <seriesInfo name="DOI" value="10.17487/RFC9562"/>
+        </reference>
+
+        <reference anchor="RFC5905" target="https://www.rfc-editor.org/info/rfc5905">
+          <front>
+            <title>Network Time Protocol Version 4: Protocol and Algorithms Specification</title>
+            <author initials="D." surname="Mills" fullname="D. Mills"/>
+            <author initials="J." surname="Martin" fullname="J. Martin"/>
+            <author initials="J." surname="Burbank" fullname="J. Burbank"/>
+            <author initials="W." surname="Kasch" fullname="W. Kasch"/>
+            <date year="2010" month="June"/>
+          </front>
+          <seriesInfo name="RFC" value="5905"/>
+          <seriesInfo name="DOI" value="10.17487/RFC5905"/>
+        </reference>
+
+        <reference anchor="RFC9110" target="https://www.rfc-editor.org/info/rfc9110">
+          <front>
+            <title>HTTP Semantics</title>
+            <author initials="R." surname="Fielding" fullname="R. Fielding"
+                    role="editor"/>
+            <author initials="M." surname="Nottingham" fullname="M. Nottingham"
+                    role="editor"/>
+            <author initials="J." surname="Reschke" fullname="J. Reschke"
+                    role="editor"/>
+            <date year="2022" month="June"/>
+          </front>
+          <seriesInfo name="STD" value="97"/>
+          <seriesInfo name="RFC" value="9110"/>
+          <seriesInfo name="DOI" value="10.17487/RFC9110"/>
+        </reference>
+
+      </references>
+
+      <references anchor="informative-references">
+        <name>Informative References</name>
+
+        <reference anchor="RFC5246" target="https://www.rfc-editor.org/info/rfc5246">
+          <front>
+            <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
+            <author initials="T." surname="Dierks" fullname="T. Dierks"/>
+            <author initials="E." surname="Rescorla" fullname="E. Rescorla"/>
+            <date year="2008" month="August"/>
+          </front>
+          <seriesInfo name="RFC" value="5246"/>
+          <seriesInfo name="DOI" value="10.17487/RFC5246"/>
+        </reference>
+
+        <reference anchor="RFC4130" target="https://www.rfc-editor.org/info/rfc4130">
+          <front>
+            <title>MIME-Based Secure Peer-to-Peer Business Data Interchange Using HTTP, Applicability Statement 2 (AS2)</title>
+            <author initials="D." surname="Moberg" fullname="D. Moberg"/>
+            <author initials="R." surname="Drummond" fullname="R. Drummond"/>
+            <date year="2005" month="July"/>
+          </front>
+          <seriesInfo name="RFC" value="4130"/>
+          <seriesInfo name="DOI" value="10.17487/RFC4130"/>
+        </reference>
+
+        <reference anchor="RFC9113" target="https://www.rfc-editor.org/info/rfc9113">
+          <front>
+            <title>HTTP/2</title>
+            <author initials="M." surname="Thomson" fullname="M. Thomson"
+                    role="editor"/>
+            <author initials="C." surname="Benfield" fullname="C. Benfield"
+                    role="editor"/>
+            <date year="2022" month="June"/>
+          </front>
+          <seriesInfo name="RFC" value="9113"/>
+          <seriesInfo name="DOI" value="10.17487/RFC9113"/>
+        </reference>
+
+        <reference anchor="RFC9114" target="https://www.rfc-editor.org/info/rfc9114">
+          <front>
+            <title>HTTP/3</title>
+            <author initials="M." surname="Bishop" fullname="M. Bishop" role="editor"/>
+            <date year="2022" month="June"/>
+          </front>
+          <seriesInfo name="RFC" value="9114"/>
+          <seriesInfo name="DOI" value="10.17487/RFC9114"/>
+        </reference>
+
+        <reference anchor="OASIS-ebMS" target="https://docs.oasis-open.org/ebxml-msg/ebms/v3.0/core/os/">
+          <front>
+            <title>OASIS ebXML Messaging Services Version 3.0: Part 1, Core Features</title>
+            <author>
+              <organization>OASIS</organization>
+            </author>
+            <date year="2007" month="October"/>
+          </front>
+        </reference>
+
+        <reference anchor="GS1-JSON" target="https://www.gs1.org/voc/">
+          <front>
+            <title>GS1 Web Vocabulary</title>
+            <author>
+              <organization>GS1</organization>
+            </author>
+            <date year="2023"/>
+          </front>
+        </reference>
+
+      </references>
+    </references>
+
+    <!-- APPENDIX A: COMPLETE MESSAGE EXAMPLE -->
+    <section anchor="appendix-example" numbered="false" toc="default">
+      <name>Appendix A: Complete Message Example</name>
+      <t>The following illustrates a complete FideX message exchange.</t>
+      <t>HTTP request (sender to receiver):</t>
+      <sourcecode name="complete-request" type="http"><![CDATA[
+POST /api/v1/receive HTTP/1.1
+Host: partner.example.com
+Content-Type: application/json
+
+{
+  "routing_header": {
+    "fidex_version": "1.0",
+    "message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "sender_id": "urn:gln:1234567890123",
+    "receiver_id": "urn:gln:9876543210987",
+    "document_type": "GS1_ORDER_JSON",
+    "timestamp": "2026-03-09T19:30:00.000Z",
+    "receipt_webhook": "https://sender.example.com/api/v1/receipt"
+  },
+  "encrypted_payload": "eyJhbGciOiJSU0EtT0FFUCIs..."
+}
+      ]]></sourcecode>
+      <t>HTTP 202 response (receiver accepts):</t>
+      <sourcecode name="complete-response" type="json"><![CDATA[
+{
+  "status": "accepted",
+  "message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "timestamp": "2026-03-09T19:30:00.500Z"
+}
+      ]]></sourcecode>
+      <t>J-MDN receipt (receiver delivers to sender's webhook):</t>
+      <sourcecode name="complete-jmdn" type="http"><![CDATA[
+POST /api/v1/receipt HTTP/1.1
+Host: sender.example.com
+Content-Type: application/json
+X-FideX-Original-Message-ID: fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+{
+  "original_message_id": "fdx-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "DELIVERED",
+  "receiver_id": "urn:gln:9876543210987",
+  "hash_verification": "sha256:9f86d08...b0f00a08",
+  "timestamp": "2026-03-09T19:30:02.000Z",
+  "error_log": null,
+  "signature": "eyJhbGciOiJSUzI1NiIs..."
+}
+      ]]></sourcecode>
+    </section>
+
+    <!-- APPENDIX B: GLOSSARY -->
+    <section anchor="appendix-glossary" numbered="false" toc="default">
+      <name>Appendix B: Glossary</name>
+      <dl newline="false" spacing="normal">
+        <dt>AS5</dt><dd>Application Statement 5  -- the formal designation of the FideX protocol.</dd>
+        <dt>B2B</dt><dd>Business-to-Business electronic commerce.</dd>
+        <dt>CSPRNG</dt><dd>Cryptographically Secure Pseudo-Random Number Generator.</dd>
+        <dt>EDI</dt><dd>Electronic Data Interchange.</dd>
+        <dt>GLN</dt><dd>Global Location Number  -- GS1 standard organization identifier.</dd>
+        <dt>HSM</dt><dd>Hardware Security Module  -- tamper-resistant hardware for key storage.</dd>
+        <dt>J-MDN</dt><dd>JSON Message Disposition Notification  -- the FideX signed delivery receipt.</dd>
+        <dt>JOSE</dt><dd>JSON Object Signing and Encryption  -- the IETF framework comprising JWS, JWE, JWK, and JWA.</dd>
+        <dt>JWE</dt><dd>JSON Web Encryption (RFC 7516).</dd>
+        <dt>JWK</dt><dd>JSON Web Key (RFC 7517).</dd>
+        <dt>JWKS</dt><dd>JSON Web Key Set  -- a JSON document containing a set of public keys.</dd>
+        <dt>JWS</dt><dd>JSON Web Signature (RFC 7515).</dd>
+        <dt>Node</dt><dd>A FideX-compliant server capable of sending and receiving messages.</dd>
+        <dt>URN</dt><dd>Uniform Resource Name  -- a persistent, location-independent identifier.</dd>
+      </dl>
+    </section>
+
+    <!-- APPENDIX C: CONFORMANCE PROFILES -->
+    <section anchor="appendix-conformance" numbered="false" toc="default">
+      <name>Appendix C: Conformance Profiles</name>
+      <t>
+        FideX defines three conformance profiles to enable progressive adoption.
+        Implementations MUST declare which profile(s) they conform to via the
+        <tt>conformance_profile</tt> field in their AS5 configuration.
+      </t>
+      <section anchor="conformance-core" numbered="false" toc="default">
+        <name>C.1 FideX Core</name>
+        <t>
+          An implementation claiming <strong>FideX Core</strong> conformance MUST support
+          all requirements listed in Sections 2 through 8 of this specification, including:
+        </t>
+        <ul spacing="normal">
+          <li>HTTP/1.1 over TLS 1.3</li>
+          <li>Sign-then-encrypt: JWE(JWS(payload))</li>
+          <li>RS256 signatures; RSA-OAEP + A256GCM encryption</li>
+          <li>RSA key size >= 2048 bits</li>
+          <li>JWKS endpoint at /.well-known/jwks.json</li>
+          <li>AS5 configuration endpoint</li>
+          <li>4-phase discovery handshake</li>
+          <li>Message state machine (QUEUED, SENT, DELIVERED, FAILED)</li>
+          <li>J-MDN generation, signing, and delivery</li>
+          <li>J-MDN fallback delivery via AS5 config receive_receipt endpoint</li>
+          <li>Standard error codes and HTTP status codes</li>
+          <li>Replay detection via message_id cache (>= 24 hours)</li>
+          <li>Timestamp validation (+/-15-minute window)</li>
+        </ul>
+      </section>
+      <section anchor="conformance-enhanced" numbered="false" toc="default">
+        <name>C.2 FideX Enhanced</name>
+        <t>
+          An implementation claiming <strong>FideX Enhanced</strong> conformance MUST satisfy
+          FideX Core AND additionally support:
+        </t>
+        <ul spacing="normal">
+          <li>HTTP/2 for multiplexed connections</li>
+          <li>Separate signing and encryption key pairs (different kid and use values)</li>
+          <li>RSA key size >= 4096 bits</li>
+          <li>Key rotation support (overlapping key publication)</li>
+          <li>J-MDN delivery retry per the schedule in Section 7.3.6</li>
+          <li>Per-partner rate limiting on all endpoints</li>
+          <li>Structured JSON logging with security event correlation IDs</li>
+          <li>Health endpoints (/health and /ready)</li>
+        </ul>
+      </section>
+      <section anchor="conformance-edge" numbered="false" toc="default">
+        <name>C.3 FideX Edge</name>
+        <t>
+          An implementation claiming <strong>FideX Edge</strong> conformance MUST satisfy
+          FideX Enhanced AND additionally support:
+        </t>
+        <ul spacing="normal">
+          <li>HTTP/3 over QUIC for connection resilience</li>
+          <li>Mutual TLS (mTLS)  -- client certificate authentication</li>
+          <li>HSM-based private key storage</li>
+        </ul>
+      </section>
+    </section>
+
+    <!-- APPENDIX D: TEST VECTORS -->
+    <section anchor="appendix-test-vectors" numbered="false" toc="default">
+      <name>Appendix D: Interoperability Test Vectors</name>
+      <t>
+        This appendix provides known-answer test vectors to allow implementers to verify
+        their JOSE cryptographic operations produce correct output.
+      </t>
+      <t>
+        <strong>WARNING:</strong> The key material in this appendix is public and MUST NOT
+        be used for any production traffic.
+      </t>
+      <t>Test payload (UTF-8 bytes):</t>
+      <sourcecode name="test-payload" type="json"><![CDATA[
+{"order_id":"PO-TEST-001","amount":100.00,"currency":"USD"}
+      ]]></sourcecode>
+      <t>SHA-256 hash of test payload:</t>
+      <sourcecode name="test-hash" type="text"><![CDATA[
+sha256:
+  bf21a9e8fbc5a3846fb05b4fa0859e0917b2202f9a69e4c98b7b0f09cb281e71
+      ]]></sourcecode>
+      <t>Expected JWS header for signing:</t>
+      <sourcecode name="test-jws-header" type="json"><![CDATA[
+{"alg":"RS256","kid":"test-sign-2026-01"}
+      ]]></sourcecode>
+      <t>Expected JWE header for encryption:</t>
+      <sourcecode name="test-jwe-header" type="json"><![CDATA[
+{
+  "alg": "RSA-OAEP",
+  "enc": "A256GCM",
+  "cty": "JWT",
+  "kid": "test-enc-2026-01"
+}
+      ]]></sourcecode>
+      <t>Test routing header:</t>
+      <sourcecode name="test-routing-header" type="json"><![CDATA[
+{
+  "fidex_version": "1.0",
+  "message_id": "fdx-00000000-0000-0000-0000-000000000001",
+  "sender_id": "urn:gln:0000000000001",
+  "receiver_id": "urn:gln:0000000000002",
+  "document_type": "GS1_ORDER_JSON",
+  "timestamp": "2026-01-01T00:00:00.000Z",
+  "receipt_webhook": "https://test.sender.example.com/receipt"
+}
+      ]]></sourcecode>
+      <t>Verification procedure:</t>
+      <ol spacing="normal">
+        <li><strong>Sign Test:</strong> Sign the test payload using RS256. Verify using the test public key. Verified payload MUST match original.</li>
+        <li><strong>Encrypt Test:</strong> Encrypt the JWS using RSA-OAEP/A256GCM. Decrypt using the test private key. Decrypted content MUST match the JWS.</li>
+        <li><strong>Hash Test:</strong> Compute SHA-256 of the raw payload bytes. Result MUST equal bf21a9e8fbc5a3846fb05b4fa0859e0917b2202f9a69e4c98b7b0f09cb281e71.</li>
+        <li><strong>Round-Trip Test:</strong> Construct a complete envelope, parse it, decrypt, verify signature, and extract payload. Result MUST match original test payload.</li>
+        <li><strong>J-MDN Test:</strong> Construct a J-MDN for the test message. Sign with receiver's key. Verify the J-MDN signature.</li>
+      </ol>
+    </section>
+
+    <!-- APPENDIX E: JSON SCHEMAS -->
+    <section anchor="appendix-schemas" numbered="false" toc="default">
+      <name>Appendix E: JSON Schema Definitions</name>
+      <t>
+        The following JSON Schema (Draft-07) definitions provide machine-readable validation
+        rules for FideX structures.
+      </t>
+      <section anchor="schema-routing-header" numbered="false" toc="default">
+        <name>E.1 Routing Header Schema</name>
+        <sourcecode name="schema-routing" type="json"><![CDATA[
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fidex-protocol.org/schemas/v1/routing-header.json",
+  "title": "FideX Routing Header",
+  "type": "object",
+  "required": [
+    "fidex_version", "message_id", "sender_id",
+    "receiver_id", "document_type", "timestamp"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "fidex_version": {
+      "type": "string", "pattern": "^\\d+\\.\\d+$"
+    },
+    "message_id": {
+      "type": "string", "minLength": 1, "maxLength": 256
+    },
+    "sender_id": {
+      "type": "string",
+      "pattern": "^urn:(gln|duns|lei|tin|custom):.+$"
+    },
+    "receiver_id": {
+      "type": "string",
+      "pattern": "^urn:(gln|duns|lei|tin|custom):.+$"
+    },
+    "document_type": {
+      "type": "string", "pattern": "^[A-Z0-9_]+$",
+      "minLength": 1, "maxLength": 128
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "receipt_webhook": {
+      "type": "string", "format": "uri",
+      "pattern": "^https://"
+    },
+    "payload_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "patternProperties": { "^x-": {} }
+}
+        ]]></sourcecode>
+      </section>
+      <section anchor="schema-jmdn" numbered="false" toc="default">
+        <name>E.2 J-MDN Schema</name>
+        <sourcecode name="schema-jmdn" type="json"><![CDATA[
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fidex-protocol.org/schemas/v1/jmdn.json",
+  "title": "FideX J-MDN",
+  "type": "object",
+  "required": [
+    "original_message_id", "status", "receiver_id",
+    "hash_verification", "timestamp", "error_log", "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "original_message_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string", "enum": ["DELIVERED", "FAILED"]
+    },
+    "receiver_id": {
+      "type": "string",
+      "pattern": "^urn:(gln|duns|lei|tin|custom):.+$"
+    },
+    "hash_verification": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "error_log": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["error_code", "error_message"],
+          "properties": {
+            "error_code": {
+              "type": "string",
+              "enum": [
+                "DECRYPTION_FAILED",
+                "SIGNATURE_INVALID",
+                "UNKNOWN_DOCUMENT_TYPE",
+                "PAYLOAD_TOO_LARGE",
+                "INTERNAL_ERROR"
+              ]
+            },
+            "error_message": { "type": "string" },
+            "details": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "signature": { "type": "string", "minLength": 1 }
+  }
+}
+        ]]></sourcecode>
+      </section>
+      <section anchor="schema-as5-config" numbered="false" toc="default">
+        <name>E.3 AS5 Configuration Schema</name>
+        <sourcecode name="schema-as5-config" type="json"><![CDATA[
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fidex-protocol.org/schemas/v1/as5-config.json",
+  "title": "FideX AS5 Configuration",
+  "type": "object",
+  "required": [
+    "fidex_version", "supported_versions", "node_id",
+    "organization_name", "public_domain",
+    "endpoints", "security"
+  ],
+  "properties": {
+    "fidex_version": {
+      "type": "string", "pattern": "^\\d+\\.\\d+$"
+    },
+    "supported_versions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "conformance_profile": {
+      "type": "string",
+      "enum": ["core", "enhanced", "edge"]
+    },
+    "node_id": { "type": "string", "pattern": "^urn:" },
+    "organization_name": { "type": "string", "minLength": 1 },
+    "public_domain": { "type": "string" },
+    "supported_document_types": {
+      "type": "array",
+      "items": {
+        "type": "string", "pattern": "^[A-Z0-9_]+$"
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "required": [
+        "receive_message", "receive_receipt",
+        "register", "jwks"
+      ],
+      "properties": {
+        "receive_message": { "type": "string", "format": "uri" },
+        "receive_receipt": { "type": "string", "format": "uri" },
+        "register": { "type": "string", "format": "uri" },
+        "jwks": { "type": "string", "format": "uri" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": [
+        "signature_algorithm", "encryption_algorithm",
+        "content_encryption", "minimum_key_size"
+      ],
+      "properties": {
+        "signature_algorithm": { "type": "string" },
+        "encryption_algorithm": { "type": "string" },
+        "content_encryption": { "type": "string" },
+        "minimum_key_size": {
+          "type": "integer", "minimum": 2048
+        }
+      }
+    }
+  }
+}
+        ]]></sourcecode>
+      </section>
+    </section>
+
+  </back>
+</rfc>
